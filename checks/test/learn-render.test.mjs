@@ -181,3 +181,29 @@ test('every lesson in the app: every beat fits the window, and nothing is cut at
     }
   }
 });
+
+test('real-run fixes: prompts wrap at spaces, a short list stays in "not yet", a safety guess wraps cleanly', async () => {
+  const { diagnosis } = await import('../../learn/lib/render.mjs');
+  // The first clause of a FAIL message, with a list of names kept.
+  assert.equal(diagnosis("These new files don't start with `// linkcheck source.`: src/stats.js. Check that the rule is committed."), "These new files don't start with `// linkcheck source.`: src/stats.js.");
+  assert.equal(diagnosis('Changed but not in the plan: src/a.js, test/b.js. Compare the plan.'), 'Changed but not in the plan: src/a.js, test/b.js.');
+  assert.equal(diagnosis('No `.practice/version.txt` yet: run `claude --version > .practice/version.txt` in /x, the folder.'), 'No `.practice/version.txt` yet');
+  // A long prompt keeps its words whole.
+  const { courseWith, DEMO_B2 } = await import('./learn-drive.mjs');
+  const prompt = 'Add src/external.js with a function countExternal(markdown) that returns how many of the links findLinks finds are external, according to isExternal.';
+  const text = DEMO_B2.replace('- run: "git status --porcelain > .practice/b-2-before.txt"', `- run: "${prompt}"`);
+  const d = driver({ course: courseWith({ 'b-2': text }), saved: { format: 1, welcomed: true, lessons: { 'b-1': { complete: true }, 'b-2': { warm: [], step: 'W1', beat: 0 } } } });
+  d.key('enter');
+  for (const cols of [60, 80]) {
+    const plain = render(d.state, { cols, rows: 30 }, theme(CAPS.full)).map(strip).join('\n');
+    for (const word of prompt.split(' ')) assert.ok(plain.includes(word), `${cols} cols: "${word}" is split`);
+  }
+});
+
+test('real-run fixes: a done git step ticks no command, and "Still stuck?" only where nothing explains', () => {
+  const d = driver({ saved: { format: 1, welcomed: true, lessons: { 'b-1': { step: 'W7', beat: 2, levels: [] } } } });
+  d.key('enter');
+  d.send({ type: 'git', paths: [] });
+  const plain = render(d.state, { cols: 80, rows: 30 }, theme(CAPS.full)).map(strip).join('\n');
+  assert.match(plain, /\$ git status\s+\n/, 'no tick beside git status');
+});

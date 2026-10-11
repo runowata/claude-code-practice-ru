@@ -686,3 +686,19 @@ test('review fixes: a stuck option may say what the learner saw in the app\'s ow
   const l = parseLesson(DEMO_B2.replace('- wrong: "`/usage`"\n- because: "Usage is something else."', '- stuck: a plan with no test\n- because: "Usage is something else."'), 'demo');
   assert.deepEqual(l.warmup[0].beats[0].options[1], { kind: 'stuck', text: 'a plan with no test', quoted: false, because: 'Usage is something else.' });
 });
+
+test('real-run fixes: a question starts with nothing picked, and h says when hints open', () => {
+  const d = at('W5');
+  assert.equal(d.state.cursor, -1);
+  d.key('enter');
+  assert.equal(d.state.beat.status, 'waiting', 'a stray enter answers nothing');
+  assert.equal(d.state.toast?.kind, 'pickFirst');
+  d.key('down');
+  assert.equal(d.state.cursor, 0);
+  d.key('enter');
+  assert.equal(d.state.beat.feedback.kind, 'wrong', 'enter picks what the arrows chose');
+  const c = at('Y4', { levels: ['hinted', 'challenge'] });
+  c.key('h');
+  assert.equal(c.state.toast?.kind, 'hintsLater');
+  assert.equal(c.state.beat.rung, -1);
+});
