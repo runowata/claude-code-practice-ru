@@ -32,15 +32,17 @@ badge: Beginner
 - beat: do
 - verify: check 5
 - watching: git show HEAD:CLAUDE.md
-- goal: "A committed `CLAUDE.md` in your copy that names the test command, `npm test`: `git show HEAD:CLAUDE.md` shows it."
+- say: Commit a `CLAUDE.md` that names the test command, `npm test`.
+- expect: "`git show HEAD:CLAUDE.md` shows it."
 - hint: "Lesson 5 gives you one; if yours doesn't name `npm test`, add it."
 - hint: "If you skipped lesson 5, or did it only in your own repository: start `claude` in your copy and run `/init`."
-- hint: "In the new `CLAUDE.md`, delete what it says about the course's own files (`checks/`, `capstone/` and `.github/`) and about `npm run check`, including any rule to keep your work off `main`: that rule is for the template repository, not your copy."
+- hint: "In the new `CLAUDE.md`, delete what it says about the course's own files (`checks/`, `learn/`, `capstone/` and `.github/`) and about `npm run check`, `npm run learn` and `npm run test:checks`, including any rule to keep your work off `main`: that rule is for the template repository, not your copy."
 - hint: "Commit any change to `CLAUDE.md` on its own before you start (`git add CLAUDE.md`, then `git commit -m "Add CLAUDE.md"`)"
 - why: "the fix commit may change only the files the plan names."
 - beat: do
 - verify: self
 - done-label: I ran it
+- say: If a session from `/init` is still open there, end it first.
 - goal: "To try the bug by hand, make a new folder outside your practice copy and save `{ "files": ["docs"] }` in it as `linkcheck.json`."
 - do: "Then run `npm run linkcheck -- <that folder>` in your copy"
 - note: "Don't put a `linkcheck.json` in your copy, because the check counts it as a change."
@@ -51,11 +53,11 @@ badge: Beginner
 - stuck: "invalid JSON with exit code 2"
 - because: "**Windows:** save the file with `'{ "files": ["docs"] }' | Set-Content <that folder>\linkcheck.json`, not `>`."
 - other: I saw something different
-- reveal: "until the bug is fixed, it prints `All relative links resolve.`"
+- reveal: "Then run `npm run linkcheck -- <that folder>` in your copy: until the bug is fixed, it prints `All relative links resolve.`"
 - beat: do
 - verify: git-clean
 - watching: git status
-- goal: "Your copy of the practice template, with no uncommitted changes"
+- say: Before you start, make sure your copy has nothing uncommitted.
 - hint: "If `git status --porcelain` lists files, commit them or set them aside with `git stash push --include-untracked`."
 - hint: "Don't put a `linkcheck.json` in your copy, because the check counts it as a change."
 - why: "`.practice/capstone-before.txt`, saved while the plan was on screen, lists no changed files."
@@ -67,29 +69,26 @@ badge: Beginner
 - beat: do
 - where: terminal
 - verify: self
-- done-label: it's running
-- goal: "Start a session"
-- hint: "start `claude` in your copy"
-- beat: do
-- verify: self
 - done-label: plan mode is on
-- goal: "switch to plan mode before your first prompt"
+- goal: "Start a session and switch to plan mode before your first prompt."
+- note: "Keep the session on track as you go: check `/context`, and compact or rewind when it helps."
+- hint: "start `claude` in your copy"
 - hint: "If `Shift+Tab` does nothing, press `Alt+M` instead"
 - beat: do
 - verify: self
 - done-label: plan is on screen
-- goal: "have Claude read the bug report and plan the fix"
+- goal: "Then have Claude read the bug report and plan the fix."
 - note: "A teammate filed the bug report in `capstone/beginner-bug.md` in your practice copy"
 - do: "Ask for a plan that adds the test and runs it before changing the code, so you see it fail"
 - hint: "write a failing test that reproduces the issue, then fix it"
 - beat: ask
 - ask: What does the plan on screen change?
-- right: "two source files and a test"
-- option: one source file and a test
-- stuck: source files, but no test
+- right: "two source files and at least one test file"
+- option: one source file and at least one test file
+- stuck: source files, but no test file
 - because: "Ask for a plan that adds the test and runs it before changing the code, so you see it fail"
 - other: I saw something different
-- reveal: "The fix touches two source files and a test."
+- reveal: "The fix touches two source files and at least one test file."
 
 ### T3 | The task step 3 of 6 | Save the plan
 - tier: challenge
@@ -97,10 +96,10 @@ badge: Beginner
 - where: shell
 - beat: predict
 - safety: plan-approval
-- ask: Guess: the final plan is on screen. What comes first?
-- option: "Approve the plan."
-- right: "While the final plan is on screen, open another terminal in the same folder."
-- option: "Watch the new test fail, then pass after the fix."
+- ask: Guess: the final plan is on screen. What do you do first?
+- option: Approve the plan
+- right: Save what git sees, from another terminal
+- option: Ask Claude to run the tests
 - reveal: "`.practice/capstone-before.txt`, saved while the plan was on screen, lists no changed files."
 - beat: do
 - verify: check 1 fresh since T2
@@ -112,7 +111,7 @@ badge: Beginner
 - beat: do
 - verify: file .practice/capstone-plan.txt fresh since T2
 - watching: .practice/capstone-plan.txt
-- goal: "Save the files the plan will change, the test file included, to `.practice/capstone-plan.txt`: one path per line, relative to the repository root, with forward slashes, such as `src/cli.js`."
+- goal: "Save the files the plan will change, every test file included, to `.practice/capstone-plan.txt`: one path per line, relative to the repository root, with forward slashes, such as `src/cli.js`."
 - why: "the fix commit may change only the files the plan names."
 
 ### T4 | The task step 4 of 6 | Watch the test
@@ -123,7 +122,7 @@ badge: Beginner
 - verify: self
 - done-label: approved
 - goal: "Approve the plan."
-- note: "Keep the session on track as you go: check `/context`, and compact or rewind when it helps."
+- note: "To read the test output, not only Claude's summary, press `Ctrl+O` as in [lesson 3](03-first-change.md#worked-example), and `Esc` to go back"
 - beat: ask
 - ask: What did the new test do?
 - right: "fail, then pass after the fix"
@@ -149,17 +148,18 @@ badge: Beginner
 - verify: self
 - done-label: read it all
 - goal: "Review the whole diff, the test file included, as in [lesson 3](03-first-change.md#worked-example)."
+- note: "The diff panel's list leaves test files out until you click the line that counts them"
 - hint: "`git diff` leaves out a new file until you run `git add -N <file>`"
 - beat: do
 - verify: self
 - done-label: asked for one
-- goal: "Ask for at least one correction that stays inside the files the plan names"
+- goal: "Ask for at least one correction that stays inside the files the plan names, and make sure `npm test` passes."
 - beat: do
 - where: shell
 - verify: check 4
 - watching: npm test
-- goal: "make sure `npm test` passes"
-- say: After the correction, check it here.
+- say: Once the correction is in, check the tests again.
+- expect: "`npm test` passes."
 
 ### T6 | The task step 6 of 6 | Commit it
 - tier: challenge
@@ -237,10 +237,10 @@ badge: Beginner
 - narrow "Save the files the plan will change": Is there a `.practice/capstone-plan.txt` in your practice copy, with one path on each line?
 - narrow "After you commit the fix, run": Is the fix committed, and did you save that commit to the file the check reads?
 - narrow "which is not a commit in this repository": Does the file hold what `git rev-parse HEAD` prints in your practice copy?
-- narrow "The commit changes files the plan didn't name": Is the saved commit your fix commit, or an earlier one such as the CLAUDE.md commit, and did the plan you approved name the files it lists?
+- narrow "The commit changes files the plan didn't name": Is the saved commit your fix commit, not an earlier one such as the CLAUDE.md commit? If the plan you approved named the files it lists, did you save every one of them, each test file too?
 - narrow "The commit changes no test file": Is the new test in the same commit as the fix?
 - hint: "Commit the fix and its test together"
-- hint: "Save the files the plan will change, the test file included, to `.practice/capstone-plan.txt`: one path per line, relative to the repository root, with forward slashes, such as `src/cli.js`."
+- hint: "Save the files the plan will change, every test file included, to `.practice/capstone-plan.txt`: one path per line, relative to the repository root, with forward slashes, such as `src/cli.js`."
 
 ### the reported bug is fixed: a missing folder in `linkcheck.json` makes the tool exit with code 2
 - narrow "not 2. Read capstone/beginner-bug.md again": Which exit code does the bug report ask for when a folder in `linkcheck.json` doesn't exist?

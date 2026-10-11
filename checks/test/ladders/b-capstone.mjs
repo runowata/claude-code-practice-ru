@@ -29,6 +29,16 @@ export const scenarios = [
     setup: savedCommit({ 'src/cli.js': '// fixed\n', 'test/cli.test.js': '// test\n', 'README.md': 'notes\n' }, 'src/cli.js\ntest/cli.test.js\n'),
   },
   {
+    // A real run's plan added two test files: a list that names only one of
+    // them fails here, not when the plan is saved.
+    item: 2,
+    name: 'the plan names one of the two test files the commit changes',
+    setup: savedCommit(
+      { 'src/check-links.js': '// fixed\n', 'src/cli.js': '// fixed\n', 'test/links.test.js': '// test\n', 'test/cli.test.js': '// test\n' },
+      'src/check-links.js\nsrc/cli.js\ntest/links.test.js\n',
+    ),
+  },
+  {
     item: 2,
     name: 'the saved commit is the earlier CLAUDE.md commit',
     setup(dir, { write, commit }) {

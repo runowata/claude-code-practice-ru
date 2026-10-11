@@ -35,6 +35,7 @@ export const C = {
   watching: (what) => [`Watching `, what, ". I'll turn green the moment it's right."],
   staleWatch: (what) => [`Watching `, what, ". It's from an earlier step: I'll turn green once you make it again."],
   fileEmpty: (path) => `${path} has no line in it yet.`,
+  andMore: (line, n) => `${line} and ${n} more line${n === 1 ? '' : 's'}`,
   slowWait: 'Part of this check takes a while, so it runs only when you ask: press r when you are ready.',
   doneBefore: { hinted: "You've done this before, so you get the goal: press h for hints.", challenge: "You've done this before, so you get just the goal." },
   watchingGit: 'Watching ',
@@ -55,6 +56,9 @@ export const C = {
   session: (n) => `${n} step${n === 1 ? '' : 's'} this session`,
   beatDone: 'Done.',
   already: 'Already done: the check already passes, so this step counts.',
+  alreadyCheck: 'The check already passes, so this step counts.',
+  hintsLater: 'From memory now: hints open after your first check (press r) or two quiet minutes.',
+  pickFirst: 'Pick an answer first: a number, or the arrows.',
   why: 'Why this matters, in the lesson\'s words:',
 
   guessFirst: 'Guess:',
@@ -87,7 +91,7 @@ export const C = {
   levelUp: 'LEVEL UP',
   toHinted: ["You've done each of these once, with every command shown.", 'From here you get the goal. Press h when you want a hint.'],
   toChallenge: ['From memory now: just the goal.', 'Hints open after your first try.'],
-  nextCounts: (h, c) => `Next: ${[h && `${h} hinted step${h === 1 ? '' : 's'}`, c && `${c} challenge${c === 1 ? '' : 's'}`].filter(Boolean).join(', then ')}.`,
+  nextCounts: (h, c) => `Still to come: ${[h && `${h} hinted step${h === 1 ? '' : 's'}`, c && `${c} challenge${c === 1 ? '' : 's'}`].filter(Boolean).join(' and ')}.`,
 
   complete: 'COMPLETE',
   lessonDone: (label) => `${label} done! You can now:`,

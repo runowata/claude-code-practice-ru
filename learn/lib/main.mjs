@@ -13,7 +13,7 @@ import { lessonLabel, render } from './render.mjs';
 import { openScreen } from './screen.mjs';
 import { loadState, saveState, snapshot } from './store.mjs';
 import { theme } from './theme.mjs';
-import { evidence, gitFirstName, gitReady, gitStatus, runCheck, singleFlight, stampOf, stopChildren } from './verify.mjs';
+import { evidence, gitFirstName, gitReady, gitStatus, lineCount, runCheck, singleFlight, stampOf, stopChildren } from './verify.mjs';
 import { watchDirs } from './watch.mjs';
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -59,7 +59,7 @@ export async function main({ stdin = process.stdin, stdout = process.stdout, env
   });
 
   // A file's first line and its state, read now: small, local and quick.
-  const file = (path) => queueMicrotask(() => !closed && dispatch({ type: 'file', path, line: evidence(root, path), stamp: stampOf(root, path) }));
+  const file = (path) => queueMicrotask(() => !closed && dispatch({ type: 'file', path, line: evidence(root, path), lines: lineCount(root, path), stamp: stampOf(root, path) }));
 
   function run(effects) {
     for (const e of effects) {

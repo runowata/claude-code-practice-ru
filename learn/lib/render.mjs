@@ -50,6 +50,8 @@ export function render(s, size, t) {
 
 const TOASTS = {
   stray: { emoji: 'wave', color: 'accent', text: () => C.stray },
+  hintsLater: { emoji: 'hint', color: 'accent', text: () => C.hintsLater },
+  pickFirst: { emoji: 'guess', color: 'accent', text: () => C.pickFirst },
   save: { emoji: 'broken', color: 'warn', text: (x) => C.saveFailed(x.message) },
 };
 
@@ -125,16 +127,24 @@ const withRoot = (text, root, win32) => text.replace('<your practice copy>', quo
 function chip(t, cmd, where, w) {
   const prompt = where === 'claude' ? '›' : t.caps.win32 ? '>' : '$';
   const room = Math.max(10, w - 4);
+  // Lines break at spaces, so a prompt keeps its words whole; only a word
+  // longer than the line, such as a long path, is split.
   const parts = [];
   let part = '';
-  for (const g of graphemes(cmd)) {
-    if (width(part + g) > room) {
-      parts.push(part);
+  for (const word of cmd.split(/(?<= )/)) {
+    if (part && width(part + word.trimEnd()) > room) {
+      parts.push(part.trimEnd());
       part = '';
     }
-    part += g;
+    for (const g of graphemes(word)) {
+      if (width(part + g) > room && g !== ' ') {
+        parts.push(part);
+        part = '';
+      }
+      part += g;
+    }
   }
-  if (part || !parts.length) parts.push(part);
+  if (part.trimEnd() || !parts.length) parts.push(part.trimEnd());
   return parts.map((part, i) => {
     const text = ` ${t.fg('prompt', i ? ' ' : prompt)} ${t.fg('code', part)}`;
     const padded = text + ' '.repeat(Math.max(1, w - width(text)));
@@ -363,7 +373,8 @@ const VIEWS = {
     const body = [];
     if (results) body.push(lead(t, 'verified', t.fg('ok', C.checkedSummary(results.filter((r) => r.pass).length, results.length))));
     body.push(lead(t, 'claude', t.fg('text', C.answeredSummary(answered))), SPACER, t.bold(t.fg('white', C.yourClimb)), SPACER,
-      ...staircase(ctx, mix(ruleTiers(s.course.map((l) => l.content), s.course.findIndex((l) => l.id === s.lesson))), true));
+      // The climb as it was played: an eased step counts at its easier tier.
+      ...staircase(ctx, mix(tiersOf(s).filter((_, i) => stepsOf(s)[i].part !== 'Warm-up')), true));
     if (nextLesson) {
       body.push(SPACER, `${t.fg('accent', t.glyph.right)} ${t.fg('muted', C.nextUp)}  ${t.pill(lessonLabel(nextLesson.id), 'accentBg')}  ${t.bold(t.fg('white', nextLesson.title))}`,
         `   ${mixBar(ctx, nextLesson, 12)}  ${t.fg('muted', C.notchHarder)}`);
@@ -496,7 +507,7 @@ function stepView(ctx) {
         const cmd = (t.caps.win32 && l.win) || withRoot(l.text, s.facts.root, t.caps.win32);
         const cw = chipWidth(ctx, beat);
         const long = cw + 22 <= inner;
-        const tick = l.tick === 'practice-dir' && s.facts.practiceDir && !done ? `  ${t.fg('ok', long ? `${t.glyph.check} .practice/ exists` : t.glyph.check)}` : done ? `  ${t.fg('ok', t.glyph.check)}` : '';
+        const tick = l.tick === 'practice-dir' && s.facts.practiceDir && !done ? `  ${t.fg('ok', long ? `${t.glyph.check} .practice/ exists` : t.glyph.check)}` : done && ['check', 'file'].includes(beat.verify.kind) ? `  ${t.fg('ok', t.glyph.check)}` : '';
         const lines = chip(t, cmd, beat.where, cw);
         rows.push(lines[0] + tick, ...lines.slice(1));
         if (!nextRun && i < beat.lines.length - 1) rows.push(SPACER);
@@ -536,7 +547,9 @@ function stepView(ctx) {
     const recall = beat.recall ? Object.entries(s.progress[s.lesson].answers).find(([k]) => k.startsWith(`${beat.recall}.`)) : null;
     rows.push(SPACER);
     if (recall) rows.push(t.fg('muted', C.youGuessed(plainText(recall[1]))));
-    const prefix = beat.kind === 'predict' && beat.safety ? `${t.lead('safety')}${C.safetyChoice} ` : t.lead('guess');
+    // A safety choice says so on its own line; the question wraps under its lead.
+    if (beat.kind === 'predict' && beat.safety) rows.push(`${t.lead('safety')}${t.fg('warn', C.safetyChoice)}`);
+    const prefix = t.lead('guess');
     rows.push(...para(t, beat.ask, inner - width(prefix), 'white').map((x, i) => (i ? `${' '.repeat(width(prefix))}${t.bold(x)}` : `${prefix}${t.bold(x)}`)));
     rows.push(SPACER, ...options(ctx, beat));
     if (beat.kind === 'predict' && !st.answer) rows.push(SPACER, ...para(t, C.anyAnswer, inner, 'muted'));
@@ -599,7 +612,7 @@ function footerRows(ctx, { beat, step, content, isLastBeat }) {
   else if (st.status === 'broken') rows.push(...para(t, `${t.lead('broken')}${C.broken(st.error)}`, inner, 'bad'));
   else if (st.status === 'already') {
     if (st.codespace) rows.push(...para(t, `${t.lead('verified')}"${beat.codespace}"`, inner, 'ok'));
-    else rows.push(...para(t, `${t.lead('verified')}${C.already}`, inner, 'ok'));
+    else rows.push(...para(t, `${t.lead('verified')}${beat.verify.all ? C.alreadyCheck : C.already}`, inner, 'ok'));
   }
   if (beat.verify.all && ['done', 'already'].includes(st.status) && s.checks[s.lesson]?.items) {
     const items = s.checks[s.lesson].items;
@@ -634,7 +647,7 @@ function footerRows(ctx, { beat, step, content, isLastBeat }) {
       rows.push(t.fg('ok', f.kind === 'other' ? C.otherFine : `${t.glyph.check} ${C.answered}`));
       if (f.because) rows.push(...quoted(f.because));
       if (beat.reveal) rows.push(...quoted(beat.reveal));
-      if (f.kind === 'other') rows.push(...para(t, C.stillStuck, inner, 'muted'));
+      if (f.kind === 'other' && !f.because) rows.push(...para(t, C.stillStuck, inner, 'muted'));
     }
   } else if (st.status === 'waiting' && st.slowWait) {
     rows.push(...para(t, `${t.lead('watch')}${C.slowWait}`, inner, 'muted'));
@@ -698,7 +711,17 @@ export function diagnosis(hint) {
   let code = false;
   for (let i = 0; i < hint.length; i++) {
     if (hint[i] === '`') code = !code;
-    if (!code && (hint.startsWith(': ', i) || hint.startsWith('. ', i))) return hint.slice(0, i + (hint[i] === '.' ? 1 : 0));
+    if (code) continue;
+    if (hint.startsWith('. ', i)) return hint.slice(0, i + 1);
+    // A colon that introduces a short list of names, such as the files a check
+    // found, belongs to what is wrong: keep the list.
+    if (hint.startsWith(': ', i)) {
+      const rest = hint.slice(i + 2);
+      const end = rest.search(/\.(\s|$)/);
+      const list = end === -1 ? rest : rest.slice(0, end);
+      if (/^[^\s`]+(, [^\s`]+)*$/.test(list)) return hint.slice(0, i + 2 + list.length + 1);
+      return hint.slice(0, i);
+    }
   }
   return hint;
 }

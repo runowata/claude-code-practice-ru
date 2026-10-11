@@ -80,6 +80,15 @@ export function evidence(dir, path) {
   }
 }
 
+// How many lines of a file hold something, such as the paths in a plan's list.
+export function lineCount(dir, path) {
+  try {
+    return readFileSync(join(dir, path), 'utf8').split(/\r?\n/).filter((l) => l.trim()).length;
+  } catch {
+    return 0;
+  }
+}
+
 // What a file is now, to tell whether it changed: its time, size and
 // content. An empty string when it doesn't exist, and null when it can't be
 // read just now (another program holds it, or its permissions changed).

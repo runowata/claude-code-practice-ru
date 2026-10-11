@@ -496,9 +496,9 @@ test('a file check is done once its file holds a line, and a fresh one once it c
   d.send({ type: 'file', path: '.practice/b-2-plan.txt', line: null, stamp: 'B' });
   assert.equal(d.state.beat.status, 'fail');
   assert.match(d.state.beat.fail.hint, /\.practice\/b-2-plan\.txt has no line/);
-  d.send({ type: 'file', path: '.practice/b-2-plan.txt', line: 'src/config.js', stamp: 'C' });
+  d.send({ type: 'file', path: '.practice/b-2-plan.txt', line: 'src/config.js', lines: 2, stamp: 'C' });
   assert.equal(d.state.beat.status, 'done');
-  assert.equal(d.state.beat.evidence, 'src/config.js');
+  assert.equal(d.state.beat.evidence, 'src/config.js and 1 more line', 'a list shows how long it is');
 });
 
 test('fresh since: the file is compared with how it was when an earlier step opened', () => {
@@ -685,4 +685,20 @@ test('review fixes: a bottom rung eases its skill from the next step on, not the
 test('review fixes: a stuck option may say what the learner saw in the app\'s own words', () => {
   const l = parseLesson(DEMO_B2.replace('- wrong: "`/usage`"\n- because: "Usage is something else."', '- stuck: a plan with no test\n- because: "Usage is something else."'), 'demo');
   assert.deepEqual(l.warmup[0].beats[0].options[1], { kind: 'stuck', text: 'a plan with no test', quoted: false, because: 'Usage is something else.' });
+});
+
+test('real-run fixes: a question starts with nothing picked, and h says when hints open', () => {
+  const d = at('W5');
+  assert.equal(d.state.cursor, -1);
+  d.key('enter');
+  assert.equal(d.state.beat.status, 'waiting', 'a stray enter answers nothing');
+  assert.equal(d.state.toast?.kind, 'pickFirst');
+  d.key('down');
+  assert.equal(d.state.cursor, 0);
+  d.key('enter');
+  assert.equal(d.state.beat.feedback.kind, 'wrong', 'enter picks what the arrows chose');
+  const c = at('Y4', { levels: ['hinted', 'challenge'] });
+  c.key('h');
+  assert.equal(c.state.toast?.kind, 'hintsLater');
+  assert.equal(c.state.beat.rung, -1);
 });
