@@ -433,7 +433,9 @@ function onFile(s, ev, effects) {
   if (s.view !== 'step' || !s.beat) return;
   const v = beatOf(s).verify;
   if (v.kind !== 'file' || ev.path !== v.path || ['done', 'already'].includes(s.beat.status)) return;
-  decide(s, { ...ev, evidence: ev.line }, effects, ev.line ? null : { hint: C.fileEmpty(ev.path) });
+  // A list shows its first line and how many more, so a short list shows.
+  const more = (ev.lines ?? 1) - 1;
+  decide(s, { ...ev, evidence: ev.line && more > 0 ? C.andMore(ev.line, more) : ev.line }, effects, ev.line ? null : { hint: C.fileEmpty(ev.path) });
 }
 
 // Turns a result into the beat's status. `failing` is null when it passes.

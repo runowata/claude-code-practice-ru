@@ -496,9 +496,9 @@ test('a file check is done once its file holds a line, and a fresh one once it c
   d.send({ type: 'file', path: '.practice/b-2-plan.txt', line: null, stamp: 'B' });
   assert.equal(d.state.beat.status, 'fail');
   assert.match(d.state.beat.fail.hint, /\.practice\/b-2-plan\.txt has no line/);
-  d.send({ type: 'file', path: '.practice/b-2-plan.txt', line: 'src/config.js', stamp: 'C' });
+  d.send({ type: 'file', path: '.practice/b-2-plan.txt', line: 'src/config.js', lines: 2, stamp: 'C' });
   assert.equal(d.state.beat.status, 'done');
-  assert.equal(d.state.beat.evidence, 'src/config.js');
+  assert.equal(d.state.beat.evidence, 'src/config.js and 1 more line', 'a list shows how long it is');
 });
 
 test('fresh since: the file is compared with how it was when an earlier step opened', () => {

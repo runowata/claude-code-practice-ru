@@ -35,6 +35,7 @@ export const C = {
   watching: (what) => [`Watching `, what, ". I'll turn green the moment it's right."],
   staleWatch: (what) => [`Watching `, what, ". It's from an earlier step: I'll turn green once you make it again."],
   fileEmpty: (path) => `${path} has no line in it yet.`,
+  andMore: (line, n) => `${line} and ${n} more line${n === 1 ? '' : 's'}`,
   slowWait: 'Part of this check takes a while, so it runs only when you ask: press r when you are ready.',
   doneBefore: { hinted: "You've done this before, so you get the goal: press h for hints.", challenge: "You've done this before, so you get just the goal." },
   watchingGit: 'Watching ',

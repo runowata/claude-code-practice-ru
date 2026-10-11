@@ -44,4 +44,15 @@ export const scenarios = [
       write(dir, { ...RULE, '.practice/b-5-commit.txt': `${sha}\n` });
     },
   },
+  {
+    // Your turn's new rule is saved, but the commit file still names the
+    // example's commit, whose file starts with the example's rule.
+    item: 1,
+    name: "Your turn's rule saved before its commit",
+    setup(dir, { write, commit }) {
+      write(dir, { 'src/stats.js': '// Part of linkcheck.\n' });
+      const sha = commit(dir, 'Add countLinks', ['src/stats.js']);
+      write(dir, { '.practice/b-5-rule.txt': '// linkcheck source.\n', '.practice/b-5-commit.txt': `${sha}\n` });
+    },
+  },
 ];
