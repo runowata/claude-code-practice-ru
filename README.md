@@ -4,6 +4,13 @@ The practice repository for [Claude Code: Everything You Need to Know](https://g
 
 Independent community guide. Not affiliated with Anthropic.
 
+<p align="center">
+  <!-- Captured with Claude Code v2.1.285 (stable) on 2026-10-11. -->
+  <img src=".github/readme/learn-lesson-complete.png" width="640" alt="Each finished lesson lists what you can now do. After Beginner lesson 1: install Claude Code, sign in, start it in a repository, and tell which version, model and account a session is using, plus a new badge, Explorer." />
+  <br />
+  <sub>The learning app, <code>npm run learn</code>, at the end of Beginner lesson 1.</sub>
+</p>
+
 ## Start
 
 1. Select **Use this template** > **Create a new repository** to make your own copy, then clone it.
