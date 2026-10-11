@@ -2,10 +2,8 @@
 
 The practice repository for [Claude Code: Everything You Need to Know](https://github.com/wesammustafa/Claude-Code-Everything-You-Need-to-Know). The lessons live in the guide; this repository holds the small app you practice on and a check for every core lesson and capstone.
 
-Independent community guide. Not affiliated with Anthropic.
-
 <p align="center">
-  <!-- Captured with Claude Code v2.1.285 (stable) on 2026-10-11. -->
+  <!-- Captured from the learning app at template commit 92d427f on 2026-10-11. -->
   <img src=".github/readme/learn-lesson-complete.png" width="640" alt="Each finished lesson lists what you can now do. After Beginner lesson 1: install Claude Code, sign in, start it in a repository, and tell which version, model and account a session is using, plus a new badge, Explorer." />
   <br />
   <sub>The learning app, <code>npm run learn</code>, at the end of Beginner lesson 1.</sub>
@@ -75,6 +73,6 @@ The app is `src/`, `test/` and `samples/`. The rest belongs to the course: `chec
 
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE). Claude Code is a product of Anthropic; this is an independent community project, not affiliated with or endorsed by Anthropic.
 
 Sources: [Dev containers](https://code.claude.com/docs/en/devcontainer), [Sandboxing](https://code.claude.com/docs/en/sandboxing), [Codespaces billing](https://docs.github.com/en/billing/concepts/product-billing/github-codespaces)
