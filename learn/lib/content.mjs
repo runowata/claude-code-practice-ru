@@ -7,16 +7,21 @@ import { join } from 'node:path';
 import { frontmatter } from '../../checks/frontmatter.mjs';
 import { lessons as checks } from '../../checks/lessons/index.mjs';
 
-export const STEP_HEADING = /^### (W\d+|Y\d+|C) \| (?:(Worked example|Your turn) step (\d+) of (\d+)|(Check)) \| (\S.*)$/;
-export const STEP_KEYS = new Set(['tier', 'skill', 'where']);
+export const STEP_HEADING = /^### (W\d+|Y\d+|T\d+|C|R\d+) \| (?:(Worked example|Your turn|The task) step (\d+) of (\d+)|(Check|Warm-up)) \| (\S.*)$/;
+// Parts whose steps the learner does on their own, with the goal in front.
+export const OWN_PARTS = new Set(['Your turn', 'The task']);
+export const STEP_KEYS = new Set(['tier', 'skill', 'where', 'from']);
+// Where a step's work happens: the other terminal, Claude Code, a third
+// terminal for shell commands while Claude Code is still open, or an editor.
+export const WHERE = new Set(['terminal', 'claude', 'shell', 'editor']);
 export const BEAT_KINDS = new Set(['do', 'predict', 'ask', 'type', 'self']);
 // Keys a beat may hold, and whether their value must be a quote of the page.
 export const BEAT_KEYS = {
-  where: false, verify: false, 'done-label': false, watching: false, evidence: false, safety: false, tick: false,
+  where: false, verify: false, 'done-label': false, watching: false, evidence: false, safety: false, tick: false, skill: false,
   say: false, ask: false, other: false, decoy: false, 'reveal-at': false, recall: false, accept: false,
   goal: true, do: true, run: true, win: true, expect: true, note: true, rule: true, after: true, why: true,
   codespace: true, 'win-note': true, hint: true, bottom: true, because: true, point: true, reveal: true, self: true,
-  right: null, wrong: null, option: null, stuck: true,
+  right: null, wrong: null, option: null, stuck: null,
 };
 export const INTRO_KEYS = { minutes: true, can: true };
 export const LADDER_KEYS = { hint: true, bottom: true, win: true };
@@ -46,7 +51,7 @@ export function parseLesson(text, file = 'lesson') {
   if (!fm) throw new Error(`${file}: no front matter`);
   const lines = text.replace(/\r\n?/g, '\n').split('\n');
   const start = lines.findIndex((l, i) => i > 0 && l.trim() === '---') + 1;
-  const lesson = { ...fm.fields, intro: { can: [] }, steps: [], ladder: [] };
+  const lesson = { ...fm.fields, intro: { can: [] }, warmup: [], steps: [], ladder: [] };
   let section = null;
   let step = null;
   let beat = null;
@@ -57,16 +62,17 @@ export function parseLesson(text, file = 'lesson') {
   for (let i = start; i < lines.length; i++) {
     const line = lines[i];
     if (!line.trim()) continue;
-    const h2 = line.match(/^## (intro|steps|ladder)$/);
+    const h2 = line.match(/^## (intro|warm-up|steps|ladder)$/);
     if (h2) {
       section = h2[1];
       continue;
     }
-    if (section === 'steps' && line.startsWith('### ')) {
+    if ((section === 'steps' || section === 'warm-up') && line.startsWith('### ')) {
       const m = line.match(STEP_HEADING);
       if (!m) fail(i, `a step heading the app can't read: ${line}`);
-      step = { id: m[1], part: m[2] ?? 'Check', n: m[3] ? Number(m[3]) : null, of: m[4] ? Number(m[4]) : null, title: m[6], beats: [], line: i + 1 };
-      lesson.steps.push(step);
+      if ((section === 'warm-up') !== (m[5] === 'Warm-up')) fail(i, `a ${section === 'warm-up' ? 'step' : 'warm-up'} heading in the ${section} section: ${line}`);
+      step = { id: m[1], part: m[2] ?? m[5], n: m[3] ? Number(m[3]) : null, of: m[4] ? Number(m[4]) : null, title: m[6], beats: [], line: i + 1 };
+      (section === 'warm-up' ? lesson.warmup : lesson.steps).push(step);
       beat = null;
       continue;
     }
@@ -102,7 +108,7 @@ export function parseLesson(text, file = 'lesson') {
       else rung.bottom.at(-1).win = v.text;
       continue;
     }
-    if (section !== 'steps' || !step) fail(i, `a line outside a step: ${line}`);
+    if (!['steps', 'warm-up'].includes(section) || !step) fail(i, `a line outside a step: ${line}`);
     if (key === 'beat') {
       if (!BEAT_KINDS.has(raw)) fail(i, `unknown beat kind ${raw}`);
       beat = { kind: raw, lines: [], options: [], hints: [], bottom: [], why: [], accept: [], line: i + 1 };
@@ -111,10 +117,12 @@ export function parseLesson(text, file = 'lesson') {
     }
     if (!beat) {
       if (!STEP_KEYS.has(key)) fail(i, `unknown step key ${key}`);
+      if (key === 'from' && step.part !== 'Warm-up') fail(i, 'only a warm-up names the lesson it comes from');
       step[key] = raw;
       continue;
     }
     if (!(key in BEAT_KEYS)) fail(i, `unknown beat key ${key}`);
+    if (key !== 'win') beat.lastKey = key;
     if (BEAT_KEYS[key] === true && !v.quoted) fail(i, `${key} must be a quote of the lesson`);
     if (BEAT_KEYS[key] === false && v.quoted) fail(i, `${key} holds the app's own words: no quotes`);
     if (OPTION_KEYS.has(key)) beat.options.push({ kind: key, ...v });
@@ -123,24 +131,27 @@ export function parseLesson(text, file = 'lesson') {
       if (!last) fail(i, 'a because line with no option above it');
       last.because = v.text;
     } else if (key === 'win') {
-      const last = beat.lines.at(-1);
-      if (last?.key !== 'run') fail(i, 'a win line with no run line above it');
+      // A Windows line replaces the command line just above it: a run line,
+      // or the last bottom line when that came last.
+      const last = beat.lastKey === 'bottom' ? beat.bottom.at(-1) : beat.lines.at(-1);
+      if (beat.lastKey !== 'bottom' && last?.key !== 'run') fail(i, 'a win line with no run or bottom line above it');
       last.win = v.text;
     } else if (key === 'tick') {
       const last = beat.lines.at(-1);
       if (last?.key !== 'run') fail(i, 'a tick line with no run line above it');
       last.tick = raw;
     } else if (key === 'hint') beat.hints.push(v.text);
-    else if (key === 'bottom') beat.bottom.push(v.text);
+    else if (key === 'bottom') beat.bottom.push({ text: v.text });
     else if (key === 'why') beat.why.push(v.text);
     else if (key === 'accept') beat.accept.push(raw);
     else if (['goal', 'say', 'do', 'run', 'note', 'rule', 'after', 'expect'].includes(key)) beat.lines.push({ key, text: v.text, quoted: v.quoted });
     else beat[camel(key)] = v.text;
   }
-  for (const s of lesson.steps) {
+  for (const s of [...lesson.warmup, ...lesson.steps]) {
     if (!s.beats.length) throw new Error(`${file}:${s.line}: step ${s.id} has no beats`);
     for (const b of s.beats) {
       b.where = b.where ?? s.where;
+      if (b.where !== undefined && !WHERE.has(b.where)) throw new Error(`${file}:${b.line}: unknown where ${b.where}`);
       b.verify = parseVerify(b, file);
     }
   }
@@ -153,8 +164,23 @@ function parseVerify(beat, file) {
   if (beat.kind !== 'do') return { kind: beat.kind === 'self' ? 'self' : 'answer' };
   const v = beat.verify ?? (beat.ask ? 'answer' : 'none');
   if (v === 'check all') return { kind: 'check', all: true };
-  const check = v.match(/^check (\d+(?: \d+)*)$/);
-  if (check) return { kind: 'check', items: check[1].split(' ').map(Number) };
+  // `fresh`: it counts only once the beat's evidence file has changed since
+  // its step opened (or since the step `since` names), so a step that redoes
+  // an earlier one can't pass on what the earlier one left behind.
+  const fresh = v.match(/ fresh(?: since ([WYTCR]\d*))?$/);
+  const base = fresh ? v.slice(0, fresh.index) : v;
+  const extra = fresh ? { fresh: true, since: fresh[1] ?? null } : {};
+  // `file <path>`: a file no check item covers, done once it holds a line.
+  const path = base.match(/^file (\S+)$/);
+  if (path) {
+    if (beat.evidence && beat.evidence !== path[1]) throw new Error(`${file}:${beat.line}: a file check's evidence is its own file`);
+    beat.evidence = path[1];
+    return { kind: 'file', path: path[1], ...extra };
+  }
+  if (fresh && !beat.evidence) throw new Error(`${file}:${beat.line}: a fresh check needs an evidence file`);
+  const check = base.match(/^check (\d+(?: \d+)*)$/);
+  if (check) return { kind: 'check', items: check[1].split(' ').map(Number), ...extra };
+  if (fresh) throw new Error(`${file}:${beat.line}: only a check or a file can be fresh`);
   if (['git-clean', 'answer', 'self', 'none'].includes(v)) return { kind: v };
   throw new Error(`${file}:${beat.line}: unknown verify value ${v}`);
 }

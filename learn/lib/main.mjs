@@ -6,14 +6,14 @@ import { fileURLToPath } from 'node:url';
 import { capabilities } from './caps.mjs';
 import { loadCourse } from './content.mjs';
 import { C } from './copy.mjs';
-import { contentOf, initialState, reduce, watching } from './flow.mjs';
+import { contentOf, initialState, reduce, stepsOf, watching } from './flow.mjs';
 import { keyParser } from './keys.mjs';
 import { plainProgress } from './plain.mjs';
 import { lessonLabel, render } from './render.mjs';
 import { openScreen } from './screen.mjs';
 import { loadState, saveState, snapshot } from './store.mjs';
 import { theme } from './theme.mjs';
-import { evidence, gitFirstName, gitReady, gitStatus, runCheck, singleFlight, stopChildren } from './verify.mjs';
+import { evidence, gitFirstName, gitReady, gitStatus, runCheck, singleFlight, stampOf, stopChildren } from './verify.mjs';
 import { watchDirs } from './watch.mjs';
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -43,10 +43,14 @@ export async function main({ stdin = process.stdin, stdout = process.stdout, env
   const draw = () => screen.draw(render(state, { cols: stdout.columns || 80, rows: stdout.rows || 24 }, t));
 
   const check = singleFlight(async (lesson, items, ev, slow) => {
+    // The evidence file's state before and after the run: if it changed while
+    // the check ran, the result may be about the old file, so ask again.
+    const before = ev ? stampOf(root, ev) : null;
     const r = await runCheck(root, lesson, items, { slow });
     if (closed) return;
-    if (r.error) dispatch({ type: 'check-error', lesson, message: r.error });
-    else dispatch({ type: 'check', lesson, items: r.items, evidence: ev ? evidence(root, ev) : null });
+    if (r.error) return dispatch({ type: 'check-error', lesson, message: r.error });
+    if (ev && stampOf(root, ev) !== before) return queueMicrotask(() => !closed && check(lesson, items, ev, slow));
+    dispatch({ type: 'check', lesson, items: r.items, evidence: ev ? evidence(root, ev) : null, path: ev ?? null, stamp: before });
   });
   const git = singleFlight(async () => {
     const r = await gitStatus(root);
@@ -54,9 +58,14 @@ export async function main({ stdin = process.stdin, stdout = process.stdout, env
     dispatch(r.error ? { type: 'git-error', message: r.error } : { type: 'git', paths: r.paths });
   });
 
+  // A file's first line and its state, read now: small, local and quick.
+  const file = (path) => queueMicrotask(() => !closed && dispatch({ type: 'file', path, line: evidence(root, path), stamp: stampOf(root, path) }));
+
   function run(effects) {
     for (const e of effects) {
       if (e.type === 'check') check(e.lesson, e.items, e.evidence, e.slow);
+      else if (e.type === 'file') file(e.path);
+      else if (e.type === 'stamp') queueMicrotask(() => !closed && dispatch({ type: 'stamp', key: e.key, stamp: stampOf(root, e.path) }));
       else if (e.type === 'git') git();
       else if (e.type === 'save') save();
       else if (e.type === 'later') setTimeout(() => !closed && dispatch({ type: 'flush' }), e.ms);
@@ -89,7 +98,8 @@ export async function main({ stdin = process.stdin, stdout = process.stdout, env
   // Ask again for whatever the screen waits on.
   function poke() {
     const w = watching(state);
-    if (w?.check) check(w.check.lesson, w.check.items, state.view === 'step' ? contentOf(state).steps[state.pos.step].beats[state.pos.beat].evidence : null);
+    if (w?.check) check(w.check.lesson, w.check.items, state.view === 'step' ? stepsOf(state)[state.pos.step].beats[state.pos.beat].evidence : null);
+    if (w?.file) file(w.file);
     if (w?.git) git();
   }
 
@@ -120,8 +130,9 @@ export async function main({ stdin = process.stdin, stdout = process.stdout, env
     const p = state.progress[state.lesson];
     if (!content || !p.step) return '';
     if (!existsSync(join(root, '.practice'))) return C.savedLater;
-    const n = content.steps.findIndex((s) => s.id === p.step) + 1;
-    return C.savedAt(lessonLabel(state.lesson), n, content.steps.length);
+    const steps = stepsOf(state);
+    const n = steps.findIndex((s) => s.id === p.step) + 1;
+    return C.savedAt(lessonLabel(state.lesson), n, steps.length);
   }
 
   const parse = keyParser();

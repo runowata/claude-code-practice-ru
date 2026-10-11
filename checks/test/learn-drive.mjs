@@ -2,7 +2,7 @@
 // the check's real FAIL messages, so tests can look at every screen.
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadCourse } from '../../learn/lib/content.mjs';
+import { loadCourse, parseLesson } from '../../learn/lib/content.mjs';
 import { DEFER_MS, initialState, reduce } from '../../learn/lib/flow.mjs';
 import { versionSaved } from '../lessons/b-1.mjs';
 import { openRepo } from '../repo.mjs';
@@ -21,9 +21,91 @@ export function b1Item(text) {
   });
 }
 
-export function driver({ saved = null, facts = {} } = {}) {
+// The course with lesson 1 as the only lesson in the app, whatever else
+// learn/lessons holds, so a test of lesson 1 alone stays put.
+export const b1Only = course.map((l) => (l.id === 'b-1' ? l : { ...l, content: null }));
+// That course, with made-up content files for some lessons, { id: text }.
+export const courseWith = (texts) => b1Only.map((l) => (texts[l.id] ? { ...l, content: parseLesson(texts[l.id], `${l.id}.md`) } : l));
+
+// A made-up lesson 2 with what lesson 1 doesn't have: three warm-ups, a
+// third terminal, and a step that redoes an earlier one.
+export const DEMO_B2 = `---
+lesson: b-2
+title: "Demo"
+stamp: "Verified against Claude Code v2.1.285 (stable) on 2026-10-05"
+next: b-3
+---
+
+## intro
+- minutes: "about 20 minutes"
+- can: "do it"
+
+## warm-up
+
+### R1 | Warm-up | Status
+- tier: challenge
+- skill: status
+- from: b-1
+- beat: ask
+- ask: Which command shows the account?
+- right: "\`/status\`"
+- wrong: "\`/usage\`"
+- because: "Usage is something else."
+
+### R2 | Warm-up | Version
+- tier: challenge
+- skill: save-version
+- from: b-1
+- beat: type
+- ask: Which command prints the version?
+- accept: claude --version
+- reveal: "\`claude --version\`"
+
+### R3 | Warm-up | Exit
+- tier: challenge
+- skill: exit
+- from: b-1
+- beat: ask
+- ask: How do you end a session?
+- right: "\`/exit\`"
+- wrong: "\`/clear\`"
+- because: "Clear is something else."
+
+## steps
+
+### W1 | Worked example step 1 of 1 | Save the list
+- tier: guided
+- skill: snapshot
+- where: shell
+- beat: do
+- verify: check 0
+- watching: .practice/b-2-before.txt
+- evidence: .practice/b-2-before.txt
+- run: "git status --porcelain > .practice/b-2-before.txt"
+
+### Y1 | Your turn step 1 of 1 | Save it again
+- tier: challenge
+- skill: snapshot
+- where: shell
+- beat: do
+- verify: check 0 fresh
+- watching: .practice/b-2-before.txt
+- evidence: .practice/b-2-before.txt
+- goal: "Save it again."
+
+### C | Check | Check
+- tier: challenge
+- skill: check
+- where: terminal
+- beat: do
+- verify: check all
+- goal: "Run the check."
+`;
+
+// Lesson 1 alone by default; lessonScreens passes the whole course.
+export function driver({ saved = null, facts = {}, course: lessons = b1Only } = {}) {
   let now = 1_000;
-  let state = initialState({ course, saved, facts: { ...FACTS, ...facts }, now });
+  let state = initialState({ course: lessons, saved, facts: { ...FACTS, ...facts }, now });
   const effects = [];
   const send = (ev) => {
     now += ev.wait ?? 3_000;
@@ -126,3 +208,73 @@ export function allScreens() {
   out.push(['W3 broken', b.state]);
   return out;
 }
+
+// Screens of every step and beat of a lesson: each opened from a saved place,
+// then waiting, failing, done, with a hint open, as its beat allows.
+export function lessonScreens(id, lessons = course) {
+  const l = lessons.find((x) => x.id === id);
+  const out = [];
+  const warm = l.content.warmup.slice(0, 2).map((w) => w.id);
+  const steps = [...warm.map((w) => l.content.warmup.find((x) => x.id === w)), ...l.content.steps];
+  const complete = Object.fromEntries(lessons.filter((x) => x.content && lessons.indexOf(x) < lessons.indexOf(l)).map((x) => [x.id, { complete: true }]));
+  steps.forEach((step) => step.beats.forEach((beat, b) => {
+    const d = driver({ course: lessons, saved: { format: 1, welcomed: true, lessons: { ...complete, [id]: { step: step.id, beat: b, warm, levels: ['hinted', 'challenge'] } } } });
+    d.key('enter');
+    const at = `${id} ${step.id}.${b}`;
+    out.push([`${at} open`, d.state]);
+    const v = beat.verify;
+    if (v.kind === 'check') {
+      const items = (v.all ? l.items.map((_, i) => i) : v.items).map((index) => ({ index, text: l.items[index], pass: false, hint: `${l.items[index]} is not there yet: do the step, then look again.` }));
+      d.send({ type: 'check', lesson: id, items, path: beat.evidence ?? null, stamp: 'a' });
+      out.push([`${at} waiting`, d.state]);
+      d.key('r');
+      d.send({ type: 'check', lesson: id, items, path: beat.evidence ?? null, stamp: 'b' });
+      out.push([`${at} fail`, d.state]);
+      for (let i = 0; i < 6; i++) {
+        d.send({ type: 'key', name: 'h', ch: 'h', wait: 3_000 });
+        d.send({ type: 'flush', wait: 400 });
+        out.push([`${at} hint ${i + 1}`, d.state]);
+        if (d.state.beat?.confirm) {
+          d.key('y');
+          out.push([`${at} bottom`, d.state]);
+          break;
+        }
+      }
+      d.send({ type: 'check', lesson: id, items: items.map((it) => ({ ...it, pass: true, hint: '' })), evidence: 'a line of evidence', path: beat.evidence ?? null, stamp: 'c' });
+      out.push([`${at} done`, d.state]);
+    } else if (v.kind === 'file') {
+      d.send({ type: 'file', path: v.path, line: null, stamp: '' });
+      out.push([`${at} waiting`, d.state]);
+      d.send({ type: 'file', path: v.path, line: 'src/config.js', stamp: 'x' });
+      out.push([`${at} done`, d.state]);
+    } else if (v.kind === 'git-clean') {
+      d.send({ type: 'git', paths: ['src/config.js', 'test/config.test.js'] });
+      out.push([`${at} dirty`, d.state]);
+      d.send({ type: 'git', paths: [] });
+      out.push([`${at} clean`, d.state]);
+    } else if (beat.ask && beat.kind !== 'type') {
+      const wrong = beat.options.findIndex((o) => o.kind === 'wrong' || o.kind === 'decoy');
+      if (wrong >= 0) {
+        d.key(String(wrong + 1));
+        out.push([`${at} wrong`, d.state]);
+      }
+      d.key(String(beat.options.findIndex((o) => o.kind === 'right' || o.kind === 'option') + 1));
+      out.push([`${at} answered`, d.state]);
+    } else if (beat.kind === 'type') {
+      d.key('enter');
+      out.push([`${at} revealed`, d.state]);
+    } else if (rungsAt(d)) {
+      for (let i = 0; i < 6 && !d.state.beat?.confirm; i++) {
+        d.send({ type: 'key', name: 'h', ch: 'h', wait: 3_000 });
+        d.send({ type: 'flush', wait: 400 });
+        out.push([`${at} hint ${i + 1}`, d.state]);
+      }
+      if (d.state.beat?.confirm) {
+        d.key('y');
+        out.push([`${at} bottom`, d.state]);
+      }
+    }
+  }));
+  return out;
+}
+const rungsAt = (d) => d.state.view === 'step' && d.state.beat && !['done', 'already'].includes(d.state.beat.status);
