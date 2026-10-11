@@ -33,17 +33,21 @@ export function sanitize(data) {
       keepGuided: p.keepGuided === true,
       easedSteps: Object.fromEntries(Object.entries(p.easedSteps ?? {}).filter(([, v]) => v === true)),
       complete: p.complete === true,
+      warm: Array.isArray(p.warm) ? p.warm.filter((x) => typeof x === 'string' && /^R\d+$/.test(x)) : [],
+      stamps: Object.fromEntries(Object.entries(p.stamps ?? {}).filter(([k, v]) => typeof k === 'string' && typeof v === 'string').map(([k, v]) => [k, v.slice(0, 120)])),
+      bottomAt: typeof p.bottomAt === 'string' && /^[WYTCR]\d*$/.test(p.bottomAt) ? p.bottomAt : null,
     };
   }
   return {
     format: FORMAT,
     welcomed: data?.welcomed === true,
     eased: Array.isArray(data?.eased) ? data.eased.filter((x) => typeof x === 'string') : [],
+    missed: Array.isArray(data?.missed) ? data.missed.filter((x) => typeof x === 'string') : [],
     lessons,
   };
 }
 
-export const snapshot = (state) => sanitize({ welcomed: state.welcomed, eased: state.eased, lessons: state.progress });
+export const snapshot = (state) => sanitize({ welcomed: state.welcomed, eased: state.eased, missed: state.missed, lessons: state.progress });
 
 // Writes atomically. Returns false, writing nothing, while `.practice/` is missing.
 export function saveState(root, data) {
