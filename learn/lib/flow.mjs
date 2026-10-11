@@ -140,7 +140,9 @@ function openBeat(s, effects) {
   markEased(s, s.pos.step);
   s.beat = { status: 'waiting', rung: -1, lockUntil: 0, confirm: false, wrongs: [], answer: null, revealed: false, typed: '', typedWrong: 0, feedback: null, idle: false, unlocked: false, explicit: false, ended: false, opened: s.now, eased: Boolean(p.easedSteps[step.id]) };
   s.lastActivity = s.now;
-  s.cursor = 0;
+  // Nothing is picked until the learner picks: an Enter meant for the screen
+  // before can't answer a question.
+  s.cursor = beat.ask && beat.options.length ? -1 : 0;
   if (beat.codespace && s.facts.codespace) {
     s.beat.status = 'already';
     s.beat.codespace = true;
@@ -431,7 +433,9 @@ function onFile(s, ev, effects) {
   if (s.view !== 'step' || !s.beat) return;
   const v = beatOf(s).verify;
   if (v.kind !== 'file' || ev.path !== v.path || ['done', 'already'].includes(s.beat.status)) return;
-  decide(s, { ...ev, evidence: ev.line }, effects, ev.line ? null : { hint: C.fileEmpty(ev.path) });
+  // A list shows its first line and how many more, so a short list shows.
+  const more = (ev.lines ?? 1) - 1;
+  decide(s, { ...ev, evidence: ev.line && more > 0 ? C.andMore(ev.line, more) : ev.line }, effects, ev.line ? null : { hint: C.fileEmpty(ev.path) });
 }
 
 // Turns a result into the beat's status. `failing` is null when it passes.
@@ -782,6 +786,11 @@ const VIEWS = {
       }
       return true;
     }
+    // At CHALLENGE, hints wait for a first try: say so instead of ignoring h.
+    if (name === 'h' && !hintAvailable(s) && tierOf(s) === 'challenge' && !done && beat.kind !== 'type' && rungsOf(s).length) {
+      s.toast = { kind: 'hintsLater', until: s.now + TOAST_MS };
+      return true;
+    }
     if (name === 'h' && hintAvailable(s)) {
       if (s.now < st.lockUntil) return true;
       const rungs = rungsOf(s);
@@ -796,8 +805,9 @@ const VIEWS = {
     const q = questionOf(beat);
     if (q && !st.answer) {
       const n = beat.options.length;
-      if (name === 'up') s.cursor = (s.cursor + n - 1) % n;
+      if (name === 'up') s.cursor = s.cursor < 0 ? n - 1 : (s.cursor + n - 1) % n;
       else if (name === 'down') s.cursor = (s.cursor + 1) % n;
+      else if (name === 'enter' && s.cursor < 0) s.toast = { kind: 'pickFirst', until: s.now + TOAST_MS };
       else if (DIGIT.test(ch ?? '') && Number(ch) <= n) pick(s, Number(ch) - 1, effects), (s.cursor = Number(ch) - 1);
       else if (name === 'enter') pick(s, s.cursor, effects);
       else if (name === 's' && beat.kind !== 'predict' && beat.options.some((o) => o.kind === 'right')) reveal(s, effects);
