@@ -19,7 +19,7 @@ Run the learning app in one terminal, and use Claude Code in a second terminal b
 npm run learn
 ```
 
-It shows one step of a lesson at a time, watches your copy, and turns a step green as soon as your work is there. The help shrinks as you go: every command at first, then hints, then only the goal. Beginner lesson 1 is in the app so far; for the other Beginner lessons, it watches the lesson's check while you follow the page.
+It shows one step of a lesson at a time, watches your copy, and turns a step green as soon as your work is there. The help shrinks as you go: every command at first, then hints, then only the goal. Every Beginner lesson and the capstone are in the app. From lesson 2 on, each opens with two warm-up questions from earlier lessons, and starts with less help than the one before.
 
 - Keys: arrows or numbers to choose, `enter` to go on, `h` for a hint, `m` for the map of lessons, `q` to quit. Your place is saved in `.practice/learn.json`.
 - If PowerShell refuses to run `npm`, run `npm.cmd run learn`.
