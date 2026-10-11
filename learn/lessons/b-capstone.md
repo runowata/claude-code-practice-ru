@@ -36,7 +36,7 @@ badge: Beginner
 - expect: "`git show HEAD:CLAUDE.md` shows it."
 - hint: "Lesson 5 gives you one; if yours doesn't name `npm test`, add it."
 - hint: "If you skipped lesson 5, or did it only in your own repository: start `claude` in your copy and run `/init`."
-- hint: "In the new `CLAUDE.md`, delete what it says about the course's own files (`checks/`, `capstone/` and `.github/`) and about `npm run check`, including any rule to keep your work off `main`: that rule is for the template repository, not your copy."
+- hint: "In the new `CLAUDE.md`, delete what it says about the course's own files (`checks/`, `learn/`, `capstone/` and `.github/`) and about `npm run check`, `npm run learn` and `npm run test:checks`, including any rule to keep your work off `main`: that rule is for the template repository, not your copy."
 - hint: "Commit any change to `CLAUDE.md` on its own before you start (`git add CLAUDE.md`, then `git commit -m "Add CLAUDE.md"`)"
 - why: "the fix commit may change only the files the plan names."
 - beat: do
