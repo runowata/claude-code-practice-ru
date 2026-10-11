@@ -55,33 +55,35 @@ const results = chosen.map(([lessonId, lesson]) => ({
   }),
 }));
 
+// Each report sets the exit code and lets the process end on its own:
+// process.exit() would drop output still on its way through a pipe, which a
+// busy machine can leave there.
 if (values.summary) {
   // Saved state under .practice/ never reaches GitHub, so the progress run
   // reports those items as checked locally instead of failed.
   const rows = results.flatMap((l) => l.items.map((i) => `| ${l.id} | ${i.text} | ${i.local ? 'checked locally' : i.pass ? 'passed' : 'not yet'} |`));
   console.log(['## Practice progress', '', '| Lesson | Item | Result |', '|---|---|---|', ...rows, '',
     'Items marked "checked locally" read files under `.practice/`, which are never pushed. Run `npm run check -- <lesson-id>` on your machine to check them.'].join('\n'));
-  process.exit(0);
-}
-
-if (values.assert) {
+} else if (values.assert) {
   const wrong = results.filter((l) => (values.assert === 'pass') !== l.items.every((i) => i.pass));
   for (const l of wrong) console.log(`${l.id}: expected every check to ${values.assert}, but ${values.assert === 'pass' ? 'some failed' : 'all passed'}`);
   console.log(wrong.length ? `${wrong.length} lesson(s) broke the assertion` : `Every lesson's check ${values.assert === 'pass' ? 'passes' : 'fails'}, as expected.`);
-  process.exit(wrong.length ? 1 : 0);
-}
+  process.exitCode = wrong.length ? 1 : 0;
+} else report();
 
-let failed = 0;
-for (const l of results) {
-  console.log(`${l.id}  ${l.title}`);
-  for (const i of l.items) {
-    console.log(`  ${i.pass ? 'PASS' : 'FAIL'}  ${i.text}`);
-    if (!i.pass) {
-      failed += 1;
-      console.log(`        ${i.hint}`);
+function report() {
+  let failed = 0;
+  for (const l of results) {
+    console.log(`${l.id}  ${l.title}`);
+    for (const i of l.items) {
+      console.log(`  ${i.pass ? 'PASS' : 'FAIL'}  ${i.text}`);
+      if (!i.pass) {
+        failed += 1;
+        console.log(`        ${i.hint}`);
+      }
     }
   }
+  const total = results.reduce((n, l) => n + l.items.length, 0);
+  console.log(`\n${total - failed} of ${total} passed`);
+  process.exitCode = failed ? 1 : 0;
 }
-const total = results.reduce((n, l) => n + l.items.length, 0);
-console.log(`\n${total - failed} of ${total} passed`);
-process.exit(failed ? 1 : 0);

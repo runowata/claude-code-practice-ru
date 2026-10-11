@@ -254,16 +254,26 @@ test('read-only: the app starts only the check and git status, and writes only i
   }
 });
 
+// Two check outputs are the same, or the first lines where they differ.
+function sameOutput(a, b, what) {
+  if (a === b) return;
+  const x = a.split('\n');
+  const y = b.split('\n');
+  const i = x.findIndex((line, k) => line !== y[k]);
+  const near = (lines) => lines.slice(Math.max(0, i - 2), i + 4).join('\n');
+  assert.fail(`${what}: the outputs differ at line ${i + 1} of ${x.length} and ${y.length}.\nWith:\n${near(x)}\nWithout:\n${near(y)}`);
+}
+
 test('adding learn/ and its state file changes no check result', () => {
   const withApp = exportHead(root);
   const without = exportHead(root, 'learn');
   try {
     const a = check(['all', '--dir', withApp]).out.replaceAll(withApp, '<dir>');
     const b = check(['all', '--dir', without]).out.replaceAll(without, '<dir>');
-    assert.equal(a, b);
+    sameOutput(a, b, 'with learn/');
     mkdirSync(join(withApp, '.practice'), { recursive: true });
     saveState(withApp, sanitize({ welcomed: true, lessons: { 'b-1': { step: 'W3' } } }));
-    assert.equal(check(['all', '--dir', withApp]).out.replaceAll(withApp, '<dir>'), b);
+    sameOutput(check(['all', '--dir', withApp]).out.replaceAll(withApp, '<dir>'), b, 'with its state file');
   } finally {
     for (const d of [withApp, without]) rmSync(d, { recursive: true, force: true });
   }
