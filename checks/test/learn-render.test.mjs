@@ -129,3 +129,55 @@ test('every label on a colored block reaches 4.5:1 contrast, and marks on a dark
   }
   delete COLORS.darkBg;
 });
+
+test('lessons after the first: page links, Windows bottom lines, slow checks and a harder step', async () => {
+  const { courseWith, DEMO_B2 } = await import('./learn-drive.mjs');
+  const text = DEMO_B2.replace('- goal: "Save it again."', '- goal: "Save it again."\n- note: "See [Watch out](#watch-out) and [lesson 5](05-project-memory.md#worked-example)."\n- bottom: "printf x > a.txt"\n- win: "Set-Content a.txt x"');
+  const course = courseWith({ 'b-2': text });
+  const d = driver({ course, saved: { format: 1, welcomed: true, lessons: { 'b-1': { complete: true }, 'b-2': { warm: ['R1', 'R2'], step: 'Y1', beat: 0, levels: ['challenge'] } } } });
+  d.key('enter');
+  const draw = (caps) => render(d.state, { cols: 100, rows: 40 }, theme({ ...CAPS.full, ...caps })).join('\n');
+  const links = [...draw({ links: true }).matchAll(/\x1b\]8;;([^\x07]*)\x07/g)].map((m) => m[1]).filter(Boolean);
+  const page = 'https://github.com/wesammustafa/Claude-Code-Everything-You-Need-to-Know/blob/main/docs/beginner/';
+  assert.ok(links.includes(`${page}02-permission-modes-and-plan-mode.md#watch-out`), links.join(' '));
+  assert.ok(links.includes(`${page}05-project-memory.md#worked-example`), links.join(' '));
+  // The bottom rung, on Windows, shows the Windows line.
+  d.send({ type: 'check', lesson: 'b-2', items: [{ index: 0, text: 'x', pass: false, hint: 'No file yet.' }], path: '.practice/b-2-before.txt', stamp: '' });
+  d.key('r');
+  d.send({ type: 'check', lesson: 'b-2', items: [{ index: 0, text: 'x', pass: false, hint: 'No file yet.' }], path: '.practice/b-2-before.txt', stamp: '' });
+  for (let i = 0; i < 4 && !d.state.beat.confirm; i++) d.send({ type: 'key', name: 'h', ch: 'h', wait: 3_000 }), d.send({ type: 'flush', wait: 400 });
+  d.key('y');
+  assert.match(strip(draw({ win32: true, unicode: true })), /Set-Content a\.txt x/);
+  assert.doesNotMatch(strip(draw({ win32: true, unicode: true })), /printf x > a\.txt/);
+  assert.match(strip(draw({})), /printf x > a\.txt/);
+  // A slow item says to press r.
+  const slow = driver({ saved: { format: 1, welcomed: true, lessons: { 'b-1': { step: 'C', beat: 0, levels: ['hinted', 'challenge'] } } } });
+  slow.key('enter');
+  slow.send({ type: 'check', lesson: 'b-1', items: [{ index: 0, text: 'x', pass: false, slow: true, hint: '' }] });
+  assert.match(strip(render(slow.state, { cols: 100, rows: 40 }, theme(CAPS.full)).join('\n')), /takes a while, so it runs only when you ask: press r/);
+});
+
+test('every lesson in the app: every beat fits the window, and nothing is cut at 80x24 or larger', async () => {
+  const { lessonScreens, course } = await import('./learn-drive.mjs');
+  const ids = course.filter((l) => l.content && l.id !== 'b-1').map((l) => l.id);
+  for (const id of ids) {
+    const all = lessonScreens(id);
+    assert.ok(all.length > 10, `${id}: ${all.length} screens`);
+    for (const [capName, caps] of Object.entries(CAPS)) {
+      const t = theme(caps);
+      for (const [cols, rows] of SIZES) {
+        for (const [label, state] of all) {
+          const lines = render(state, { cols, rows }, t);
+          const where = `${label} at ${cols}x${rows} (${capName})`;
+          assert.equal(lines.length, rows, where);
+          for (const line of lines) assert.ok(width(line) <= cols - 1, `${where}: ${strip(line)}`);
+          if (cols >= 80 && (capName === 'full' || capName === 'ascii')) {
+            const plain = lines.map(strip);
+            const end = t.unicode ? '…' : '.';
+            assert.ok(!plain.some((l) => l.endsWith(end) && width(l) === cols - 1 && (t.unicode || /\S\.$/.test(l))), `${where} cuts a line:\n${plain.filter((l) => width(l) === cols - 1).join('\n')}`);
+          }
+        }
+      }
+    }
+  }
+});

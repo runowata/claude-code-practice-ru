@@ -59,7 +59,7 @@ export const items = [
       if (error) return error;
       const files = repo.git('show', '--name-only', '--format=', sha).split('\n').filter(Boolean);
       const tests = files.filter(isTestFile);
-      if (!tests.length) return `The commit changes no test file (${files.join(', ')}); the check counts ${TEST_NAMES}. Ask Claude to add the test and amend the commit with \`git commit --amend\`, then save it again: ${SAVE_COMMIT}.`;
+      if (!tests.length) return `The commit changes no test file (${files.join(', ')}). The check counts ${TEST_NAMES}. Ask Claude to add the test and amend the commit with \`git commit --amend\`, then save it again: ${SAVE_COMMIT}.`;
       if (tests.length === files.length) return `The commit changes only tests (${files.join(', ')}). If the code change is in an earlier commit, ask Claude to combine the two commits into one, then save it again: ${SAVE_COMMIT}.`;
       return true;
     },

@@ -4,11 +4,12 @@
 import { banner, bannerWidth, burst, confetti, pip } from './art.mjs';
 import { C } from './copy.mjs';
 import {
-  answerKey, authoredTier, beatOf, contentOf, hintAvailable, lessonOf, rungsOf, stepOf, tierOf, tiersOf,
+  answerKey, authoredTier, beatOf, contentOf, hintAvailable, lessonOf, pickWarmups, rungsOf, stepNote, stepOf, stepsOf, tierOf, tiersOf, WARMUPS,
 } from './flow.mjs';
 import { cut, graphemes, inline, pad, plainText, width, wrapRuns } from './text.mjs';
 import { tierLabel, tierPill, TIER_STYLE } from './theme.mjs';
 import { mix, PLANNED, ruleTiers, scaleMix } from './tiers.mjs';
+import { OWN_PARTS } from './content.mjs';
 
 export const MIN = { cols: 60, rows: 20 };
 // A blank line the layout may drop when the window is short. Inside a card
@@ -18,8 +19,13 @@ const SPACER = spacer();
 
 export const lessonLabel = (id) => (id.endsWith('capstone') ? 'CAP' : id.replace(/^([a-z])-(\d+)$/, (_, l, n) => `${l.toUpperCase()}${n}`));
 
+// The lesson page a quote's relative links point into: set for each frame.
+let pageUrl = '';
+
 export function render(s, size, t) {
   const { cols, rows } = size;
+  const step = s.view === 'step' && s.beat ? stepOf(s) : null;
+  pageUrl = (step?.part === 'Warm-up' ? lessonOf(s, step.from) : lessonOf(s))?.url ?? '';
   if (cols < MIN.cols || rows < MIN.rows) return small(cols, rows);
   const W = Math.min(cols - 4, 80);
   const M = Math.floor((cols - W) / 2);
@@ -38,7 +44,7 @@ export function render(s, size, t) {
   lines = lines.map((l) => (l?.spacer ? l.text : l));
   const out = [...top, ...head, ...lines];
   while (out.length < rows - 3 - toast.length) out.push('');
-  out.push(...toast, '', t.fg('faint', t.glyph.rule.repeat(W)), keybar(t, keys));
+  out.push(...toast, '', t.fg('faint', t.glyph.rule.repeat(W)), keybar(t, keys, W));
   return out.map((l) => (l ? cut(' '.repeat(M) + (t.unicode ? l : ascii(l)), cols - 1, t.unicode ? '…' : '.') : ''));
 }
 
@@ -49,7 +55,7 @@ const TOASTS = {
 
 // ASCII mode: the few symbols in the app's own words and in quotes, spelled
 // out; anything else outside ASCII becomes '?'.
-const ASCII = { '·': '|', '…': '...', '↑': '^', '↓': 'v', '←': '<-', '’': "'", '‘': "'", '“': '"', '”': '"', '–': '-' };
+const ASCII = { '·': '|', '…': '...', '↑': '^', '↓': 'v', '←': '<-', '’': "'", '‘': "'", '“': '"', '”': '"', '–': '-', '›': '>' };
 const ascii = (line) => line.replace(/[^\x00-\x7f]/g, (ch) => ASCII[ch] ?? '?');
 
 function small(cols, rows) {
@@ -71,19 +77,41 @@ function para(t, text, w, color = 'text', { quote = false } = {}) {
   return wrapRuns(runs, w).map((line) => line.map((r) => {
     let s = t.fg(r.code ? 'code' : color, r.text);
     if (r.bold) s = t.bold(s);
-    if (r.url) s = t.link(s, r.url);
+    if (r.url) s = t.link(s, absolute(r.url));
     return s;
   }).join(''));
 }
 
-function keybar(t, keys) {
-  return keys.filter(Boolean).map((k) => {
-    if (k.main) return `${t.pill(k.key, k.bg ?? 'okBg', k.fg ?? 'white')} ${t.bold(t.fg('white', k.label))}`;
-    return `${t.fg('key', t.bold(k.key))} ${t.fg('muted', k.label)}`;
+// A link in a lesson's words, such as `#watch-out` or `05-project-memory.md`,
+// resolved against its page.
+function absolute(url) {
+  if (/^[a-z][a-z+.-]*:/i.test(url) || !pageUrl) return url;
+  try {
+    return new URL(url, pageUrl).href;
+  } catch {
+    return url;
+  }
+}
+
+// The keys that fit in `w` columns: a main key's long label gives way to its
+// short one first, then the optional keys go from the right; q always stays.
+function keybar(t, keys, w = Infinity) {
+  const draw = (list, short) => list.map((k) => {
+    const label = short && k.short ? k.short : k.label;
+    if (k.main) return `${t.pill(k.key, k.bg ?? 'okBg', k.fg ?? 'white')} ${t.bold(t.fg('white', label))}`;
+    return `${t.fg('key', t.bold(k.key))} ${t.fg('muted', label)}`;
   }).join('    ');
+  let list = keys.filter(Boolean);
+  if (width(draw(list, false)) <= w) return draw(list, false);
+  while (width(draw(list, true)) > w) {
+    const drop = list.findLastIndex((k) => !k.main && k.key !== 'q' && k.key !== 'ctrl+c');
+    if (drop < 0) break;
+    list = list.filter((_, i) => i !== drop);
+  }
+  return draw(list, true);
 }
 const key = (k, label) => ({ key: k, label });
-const mainKey = (k, label, bg, fg) => ({ key: k, label, main: true, bg, fg });
+const mainKey = (k, label, bg, fg, short) => ({ key: k, label, main: true, bg, fg, short });
 
 // The practice copy's folder in a command, quoted when the shell needs it.
 export function quotePath(path, win32) {
@@ -114,35 +142,53 @@ function chip(t, cmd, where, w) {
   });
 }
 
-function trail(ctx) {
+// The steps a lesson will play and their tiers. Before a lesson starts, the
+// warm-ups it would pick stand in for the ones it picks on enter.
+function planned(s) {
+  const content = contentOf(s);
+  if (s.view !== 'intro' || !content.warmup.length) return { steps: stepsOf(s), tiers: tiersOf(s) };
+  const own = tiersOf(s).filter((_, i) => stepsOf(s)[i].part !== 'Warm-up');
+  const warm = pickWarmups(s).map((id) => content.warmup.find((w) => w.id === id));
+  return { steps: [...warm, ...content.steps], tiers: [...warm.map(() => 'challenge'), ...own] };
+}
+
+// One mark per step, joined within a tier and spaced between tiers. When the
+// row has no room for that, the marks close up.
+function trail(ctx, room) {
   const { s, t } = ctx;
-  const steps = contentOf(s).steps;
-  const tiers = tiersOf(s);
+  const { steps, tiers } = planned(s);
   const done = new Set(s.progress[s.lesson].done);
   const current = s.view === 'step' || s.view === 'levelup' ? s.pos.step : -1;
-  let out = '';
-  steps.forEach((step, i) => {
-    const style = TIER_STYLE[tiers[i]];
-    const isDone = done.has(step.id) && i !== current;
-    if (isDone) out += t.fg('ok', t.glyph[style.on]);
-    else if (i === current) out += t.bold(t.fg('accent', t.glyph[style.on]));
-    else out += t.fg(style.tint, t.glyph[style.off]);
-    if (i + 1 < steps.length) {
-      if (tiers[i + 1] !== tiers[i]) out += '   ';
-      else if (isDone && (done.has(steps[i + 1].id) || i + 1 === current)) out += t.fg('ok', t.glyph.bold.repeat(2));
-      else out += t.fg('faint', t.glyph.rule.repeat(2));
-    }
-  });
-  return out;
+  const draw = (join, gap) => {
+    let out = '';
+    steps.forEach((step, i) => {
+      const style = TIER_STYLE[tiers[i]];
+      const isDone = done.has(step.id) && i !== current;
+      if (isDone) out += t.fg('ok', t.glyph[style.on]);
+      else if (i === current) out += t.bold(t.fg('accent', t.glyph[style.on]));
+      else out += t.fg(style.tint, t.glyph[style.off]);
+      if (i + 1 < steps.length) {
+        if (tiers[i + 1] !== tiers[i]) out += gap;
+        else if (isDone && (done.has(steps[i + 1].id) || i + 1 === current)) out += t.fg('ok', t.glyph.bold.repeat(join));
+        else out += t.fg('faint', t.glyph.rule.repeat(join));
+      }
+    });
+    return out;
+  };
+  const full = draw(2, '   ');
+  return width(full) <= room ? full : draw(0, ' ');
 }
 
 function lessonHead(ctx, right, rightText) {
   const { s, t, W } = ctx;
   const l = lessonOf(s);
-  const title = l.content?.title ?? l.title;
+  // The check's short title, as on the map, cut to the room the pill leaves;
+  // the content file keeps the page's heading.
+  const label = t.pill(lessonLabel(l.id), 'accentBg');
+  const title = cut(l.title, Math.max(8, W - width(label) - 2 - width(right) - 1), t.unicode ? '…' : '.');
   return [
-    spread(`${t.pill(lessonLabel(l.id), 'accentBg')}  ${t.bold(t.fg('white', title))}`, right, W),
-    spread(l.content ? trail(ctx) : '', t.fg('muted', rightText), W),
+    spread(`${label}  ${t.bold(t.fg('white', title))}`, right, W),
+    spread(l.content ? trail(ctx, W - width(rightText) - 1) : '', t.fg('muted', rightText), W),
     rule(t, W),
   ];
 }
@@ -159,6 +205,11 @@ function card(ctx, { tint, where, done, rows }) {
 }
 
 const lead = (t, name, s) => `${t.lead(name)}${s}`;
+// Text after a lead, wrapped to the room the lead leaves and indented under it.
+const led = (t, name, text, w, color, opts) => {
+  const lw = width(t.lead(name));
+  return para(t, text, w - lw, color, opts).map((x, i) => (i ? `${' '.repeat(lw)}${x}` : `${t.lead(name)}${x}`));
+};
 const hintBox = (t, lines) => lines.map((l) => `${t.fg('warn', t.glyph.bar)} ${l}`);
 
 // ---- views -------------------------------------------------------------------
@@ -195,16 +246,16 @@ const VIEWS = {
 
   resume(ctx) {
     const { s, t } = ctx;
-    const content = contentOf(s);
+    const steps = stepsOf(s);
     const p = s.progress[s.lesson];
-    const index = Math.max(0, content.steps.findIndex((x) => x.id === p.step));
+    const index = Math.max(0, steps.findIndex((x) => x.id === p.step));
     const art = pip(t, 'happy');
     return {
-      head: lessonHead(ctx, '', C.stepOf(index + 1, content.steps.length)),
+      head: lessonHead(ctx, '', C.stepOf(index + 1, steps.length)),
       body: [
         ` ${art[0]}`,
         ` ${art[1]}   ${lead(t, 'wave', t.bold(t.fg('white', C.welcomeBack)))}`,
-        ` ${art[2]}   ${t.fg('text', C.youreOn(lessonLabel(s.lesson), index + 1, content.steps.length, content.steps[index].title))}`,
+        ` ${art[2]}   ${t.fg('text', C.youreOn(lessonLabel(s.lesson), index + 1, steps.length, steps[index].title))}`,
         ` ${art[3]}`,
         ...(s.confirmRestart ? [SPACER, `${t.fg('warn', t.glyph.warnMark)} ${t.bold(t.fg('white', C.restartAsk))}`] : []),
       ],
@@ -217,15 +268,17 @@ const VIEWS = {
   intro(ctx) {
     const { s, t, W } = ctx;
     const content = contentOf(s);
-    const tiers = tiersOf(s);
-    const m = mix(tiers);
+    const warmups = Math.min(WARMUPS, content.warmup.length);
+    // The climb is the lesson's own steps: warm-ups are recall, not new help.
+    const steps = stepsOf(s);
+    const m = mix(tiersOf(s).filter((_, i) => steps[i].part !== 'Warm-up'));
     const n = s.course.findIndex((l) => l.id === s.lesson) + 1;
     const label = s.lesson.endsWith('capstone') ? C.startCapstone : C.startLesson(n);
     const option = (i, text) => (s.cursor === i
       ? `${t.fg('key', t.bold(t.glyph.pointer))} ${t.inverse(t.fg('key', t.bold(` ${text} `)))}`
       : `  ${t.fg('text', ` ${text}`)}`);
     return {
-      head: lessonHead(ctx, t.fg('muted', content.intro.minutes ?? ''), C.steps(content.steps.length)),
+      head: lessonHead(ctx, t.fg('muted', content.intro.minutes ?? ''), C.steps(content.steps.length + warmups)),
       body: [
         lead(t, 'goal', t.bold(t.fg('white', C.youllBeAble))),
         ...content.intro.can.flatMap((c) => para(t, c, W - 6).map((l, i) => `   ${i ? ' ' : t.fg('faint', t.glyph.dotOff)} ${l}`)),
@@ -233,6 +286,7 @@ const VIEWS = {
         t.bold(t.fg('white', C.helpShrinks)),
         SPACER,
         ...staircase(ctx, m, false),
+        ...(warmups ? [t.fg('muted', C.warmups(warmups))] : []),
         SPACER,
         option(0, label),
         option(1, C.lessHelp),
@@ -275,13 +329,14 @@ const VIEWS = {
   complete(ctx) {
     const { s, t, W } = ctx;
     const content = contentOf(s);
+    const total = stepsOf(s).length;
     const art = pip(t, 'party');
     const word = banner(t, C.complete);
     const fits = t.unicode && W >= 14 + bannerWidth(C.complete);
     const n = s.course.findIndex((l) => l.id === s.lesson) + 1;
-    const label = s.lesson.endsWith('capstone') ? 'The capstone' : `Lesson ${n}`;
+    const label = s.lesson.endsWith('capstone') ? 'Capstone' : `Lesson ${n}`;
     return {
-      head: lessonHead(ctx, t.pill(`${C.complete} ${t.glyph.check}`, 'okBg'), `${content.steps.length} of ${content.steps.length}`),
+      head: lessonHead(ctx, t.pill(`${C.complete} ${t.glyph.check}`, 'okBg'), `${total} of ${total}`),
       body: [
         confetti(t, W),
         SPACER,
@@ -301,7 +356,8 @@ const VIEWS = {
     const { s, t, W } = ctx;
     const content = contentOf(s);
     const results = s.checks[s.lesson]?.items;
-    const answered = content.steps.flatMap((st) => st.beats.map((b, i) => [st, b, i]))
+    const total = stepsOf(s).length;
+    const answered = stepsOf(s).flatMap((st) => st.beats.map((b, i) => [st, b, i]))
       .filter(([, b]) => b.ask && b.kind !== 'predict').length;
     const nextLesson = content.next ? lessonOf(s, content.next) : null;
     const body = [];
@@ -314,7 +370,7 @@ const VIEWS = {
     }
     body.push(SPACER, t.fg('muted', C.savedBreak));
     return {
-      head: lessonHead(ctx, t.pill(`${C.complete} ${t.glyph.check}`, 'okBg'), `${content.steps.length} of ${content.steps.length}`),
+      head: lessonHead(ctx, t.pill(`${C.complete} ${t.glyph.check}`, 'okBg'), `${total} of ${total}`),
       body,
       keys: [nextLesson ? mainKey('enter', C.k.startN(lessonLabel(nextLesson.id))) : mainKey('enter', C.k.map), key('m', C.k.map), key('q', C.k.quit)],
     };
@@ -423,10 +479,11 @@ function stepView(ctx) {
   const isLastBeat = s.pos.beat === step.beats.length - 1;
   const hideRuns = tier !== 'guided' && authored === 'guided';
   const inlineBottom = tier === 'guided' && authored !== 'guided';
-  const rows = [t.bold(t.fg('white', beat.kind === 'type' ? C.lastQuestion : step.title))];
+  const rows = [t.bold(t.fg('white', beat.kind === 'type' && step.part === 'Check' ? C.lastQuestion : step.title))];
+  if (step.part === 'Warm-up') rows.push(t.fg('muted', C.warmup(s.course.findIndex((l) => l.id === step.from) + 1)));
   const quoted = (text, color = 'muted') => para(t, text, inner, color, { quote: true });
 
-  if (beat.kind === 'self') rows.push(...para(t, beat.self, inner - 3, 'white').map((l, i) => (i ? `   ${l}` : lead(t, 'self', l))));
+  if (beat.kind === 'self') rows.push(...led(t, 'self', beat.self, inner, 'white'));
   if (beat.kind === 'predict') {
     for (const l of beat.lines) if (l.key === 'note') rows.push(...quoted(l.text, 'text'));
   } else {
@@ -444,30 +501,37 @@ function stepView(ctx) {
         rows.push(lines[0] + tick, ...lines.slice(1));
         if (!nextRun && i < beat.lines.length - 1) rows.push(SPACER);
       } else if (l.key === 'goal') {
-        const lines = para(t, l.text, tier === 'challenge' ? inner - 3 : inner, 'white');
-        rows.push(...(tier === 'challenge' ? lines.map((x, i) => (i ? `   ${x}` : lead(t, 'goal', x))) : lines));
+        rows.push(...(tier === 'challenge' ? led(t, 'goal', l.text, inner, 'white') : para(t, l.text, inner, 'white')));
       } else if (l.key === 'say' || l.key === 'do') rows.push(...para(t, l.text, inner, 'text'));
       else if (l.key === 'note') rows.push(...quoted(l.text));
-      else if (l.key === 'rule') rows.push(...para(t, l.text, inner - 3, 'text', { quote: true }).map((x, i) => (i ? `   ${x}` : lead(t, 'safety', x))));
-      else if (l.key === 'after') rows.push(...para(t, l.text, inner - 2, 'text').map((x, i) => `${i ? ' ' : t.fg('accent', t.glyph.arrow)} ${x}`));
+      else if (l.key === 'rule') rows.push(...led(t, 'safety', l.text, inner, 'text', { quote: true }));
+      else if (l.key === 'after') {
+        const aw = width(t.glyph.arrow) + 1;
+        rows.push(...para(t, l.text, inner - aw, 'text').map((x, i) => `${i ? ' '.repeat(aw - 1) : t.fg('accent', t.glyph.arrow)} ${x}`));
+      }
       else if (l.key === 'expect') {
-        if (beat.verify.kind === 'check') rows.push(...para(t, `${C.doneWhen}${l.text}`, inner, 'muted'));
+        if (['check', 'file'].includes(beat.verify.kind)) rows.push(...para(t, `${C.doneWhen}${l.text}`, inner, 'muted'));
         else rows.push(...quoted(l.text));
       }
     });
     if (inlineBottom) {
-      for (const b of beat.bottom) rows.push(...(b.includes('`') ? para(t, b, inner, 'text') : chip(t, b, beat.where, chipWidth(ctx, beat))));
+      for (const b of beat.bottom) {
+        const text = (t.caps.win32 && b.win) || b.text;
+        rows.push(...(text.includes('`') ? para(t, text, inner, 'text') : chip(t, text, beat.where, chipWidth(ctx, beat))));
+      }
     }
-    if (tier === 'challenge' && step.part === 'Your turn' && s.pos.beat === 0) rows.push(SPACER, t.fg('muted', C.noCommands));
-    if (hideRuns && beat.lines.some((l) => l.key === 'run') && !done) rows.push(t.fg('muted', C.pressH));
+    const firstBeat = step.beats.findIndex((b) => b.kind !== 'predict');
+    if (tier === 'challenge' && OWN_PARTS.has(step.part) && s.pos.beat === firstBeat) rows.push(SPACER, t.fg('muted', C.noCommands));
+    else if (stepNote(s) && s.pos.beat === firstBeat && !done) rows.push(SPACER, ...para(t, hintAvailable(s) ? C.doneBefore.hinted : C.doneBefore.challenge, inner, 'muted'));
+    if (hideRuns && beat.lines.some((l) => l.key === 'run') && !done) rows.push(...para(t, C.pressH, inner, 'muted'));
   }
   if (beat.winNote && t.caps.win32) rows.push(...quoted(beat.winNote));
 
   // The question, if this beat asks one.
   if (beat.kind === 'type') {
-    rows.push(...para(t, beat.ask, inner, 'white').map((x) => t.bold(x)), t.fg('muted', C.typeIt), SPACER,
+    rows.push(...para(t, beat.ask, inner, 'white').map((x) => t.bold(x)), ...para(t, C.typeIt, inner, 'muted'), SPACER,
       `  ${t.fg('muted', '›')} ${t.fg('code', st.status === 'done' && st.revealed ? '' : st.typed)}${st.status === 'done' ? '' : t.inverse(' ')}`);
-    if (st.status !== 'done') rows.push(SPACER, t.fg('muted', C.emptyShows));
+    if (st.status !== 'done') rows.push(SPACER, ...para(t, C.emptyShows, inner, 'muted'));
   } else if (beat.ask) {
     const recall = beat.recall ? Object.entries(s.progress[s.lesson].answers).find(([k]) => k.startsWith(`${beat.recall}.`)) : null;
     rows.push(SPACER);
@@ -475,19 +539,19 @@ function stepView(ctx) {
     const prefix = beat.kind === 'predict' && beat.safety ? `${t.lead('safety')}${C.safetyChoice} ` : t.lead('guess');
     rows.push(...para(t, beat.ask, inner - width(prefix), 'white').map((x, i) => (i ? `${' '.repeat(width(prefix))}${t.bold(x)}` : `${prefix}${t.bold(x)}`)));
     rows.push(SPACER, ...options(ctx, beat));
-    if (beat.kind === 'predict' && !st.answer) rows.push(SPACER, t.fg('muted', C.anyAnswer));
+    if (beat.kind === 'predict' && !st.answer) rows.push(SPACER, ...para(t, C.anyAnswer, inner, 'muted'));
   }
 
   const footer = footerRows(ctx, { beat, step, content, isLastBeat });
   if (footer.length) rows.push(SPACER, ...footer);
 
   const whereKey = beat.kind === 'do' ? beat.where : beat.kind;
-  const whereEmoji = { terminal: 'terminal', claude: 'claude', predict: 'guess', ask: 'guess', type: 'goal', self: 'self' }[whereKey];
+  const whereEmoji = { terminal: 'terminal', claude: 'claude', shell: 'terminal', editor: 'editor', predict: 'guess', ask: 'guess', type: 'goal', self: 'self' }[whereKey];
   const where = `${t.lead(whereEmoji)}${C.where[whereKey]}`;
   const tint = done ? 'ok' : style.tint;
   return {
-    head: lessonHead(ctx, tierPill(t, tier), C.stepOf(s.pos.step + 1, content.steps.length)),
-    body: card(ctx, { tint, where, done: done && (beat.verify.kind === 'check' || beat.verify.kind === 'git-clean'), rows }),
+    head: lessonHead(ctx, tierPill(t, tier), C.stepOf(s.pos.step + 1, stepsOf(s).length)),
+    body: card(ctx, { tint, where, done: done && ['check', 'file', 'git-clean'].includes(beat.verify.kind), rows }),
     keys: stepKeys(ctx, { beat, step, content, done, isLastBeat }),
   };
 }
@@ -495,8 +559,9 @@ function stepView(ctx) {
 // Chips in a beat share one width: room for the longest command, up to the
 // card's width. A live tick beside a chip shortens to a mark when it won't fit.
 const chipWidth = (ctx, beat) => {
-  const longest = Math.max(...beat.lines.filter((l) => l.key === 'run').map((l) => Math.max(width(withRoot(l.text, ctx.s.facts.root, ctx.t.caps.win32)), width(l.win ?? ''))), ...beat.bottom.map((b) => width(b)), 10);
-  return Math.min(ctx.inner - 2, Math.max(longest + 4, 30));
+  const longest = Math.max(...beat.lines.filter((l) => l.key === 'run').map((l) => Math.max(width(withRoot(l.text, ctx.s.facts.root, ctx.t.caps.win32)), width(l.win ?? ''))), ...beat.bottom.map((b) => Math.max(width(b.text), width(b.win ?? ''))), 10);
+  // Room for the tick a done command gets beside its chip.
+  return Math.min(ctx.inner - 2 - width(ctx.t.glyph.check), Math.max(longest + 4, 30));
 };
 
 function options(ctx, beat) {
@@ -510,8 +575,9 @@ function options(ctx, beat) {
     const mark = right ? t.fg('ok', t.glyph.check) : wrong ? t.fg('warn', t.glyph.warnMark) : cursor ? t.fg('key', t.bold(t.glyph.pointer)) : chosen ? t.fg('key', t.glyph.pointer) : ' ';
     const num = cursor ? t.inverse(t.fg('key', t.bold(` ${i + 1} `))) : t.fg('muted', ` ${i + 1} `);
     const color = right ? 'ok' : wrong || o.kind === 'other' ? 'muted' : cursor ? 'key' : 'text';
-    const text = para(t, o.text, inner - 10, color);
     const tag = wrong && st.wrongs.at(-1) === i && !st.answer ? `  ${t.fg('warn', `${t.unicode ? '←' : '<-'} not this one`)}` : '';
+    // The option wraps short of the tag beside its first line.
+    const text = para(t, o.text, inner - 10 - width(tag), color);
     return text.map((x, k) => (k ? `       ${x}` : ` ${mark} ${num}  ${cursor ? t.bold(x) : x}${tag}`));
   }).flat();
 }
@@ -521,7 +587,9 @@ function footerRows(ctx, { beat, step, content, isLastBeat }) {
   const st = s.beat;
   const rows = [];
   const quoted = (text, color = 'text') => para(t, text, inner - 2, color, { quote: true });
-  const stepNumber = (id) => content.steps.findIndex((x) => x.id === id) + 1;
+  const stepNumber = (id) => stepsOf(s).findIndex((x) => x.id === id) + 1;
+  // Room for text beside the burst.
+  const room = inner - (t.unicode ? 21 : 7);
   const celebrate = (lines) => {
     const count = s.session + (s.progress[s.lesson].done.includes(step.id) ? 0 : 1);
     rows.push(...burst(t, [t.bold(t.fg('ok', C.stepDone(s.pos.step + 1))), ...lines, lead(t, 'fire', t.bold(t.fg('challenge', C.session(count))))]));
@@ -535,13 +603,17 @@ function footerRows(ctx, { beat, step, content, isLastBeat }) {
   }
   if (beat.verify.all && ['done', 'already'].includes(st.status) && s.checks[s.lesson]?.items) {
     const items = s.checks[s.lesson].items;
-    rows.push(`${t.fg('ok', t.glyph.check)} ${t.fg('code', `npm run check -- ${s.lesson}`)} ${t.fg('ok', C.checkPasses(items.filter((x) => x.pass).length, items.length)[0])}`, t.fg('muted', C.runItToo));
-  } else if (st.status === 'done' && beat.verify.kind === 'check') {
-    const ev = st.evidence ? [`${t.fg('code', beat.evidence)}${t.fg('text', ' holds ')}${t.fg('code', st.evidence)}`] : [];
-    if (isLastBeat) celebrate(ev.length ? ev : [t.fg('text', C.beatDone)]);
+    rows.push(`${t.fg('ok', t.glyph.check)} ${t.fg('code', `npm run check -- ${s.lesson}`)} ${t.fg('ok', C.checkPasses(items.filter((x) => x.pass).length, items.length)[0])}`, ...para(t, C.runItToo(C.where[beat.where] ?? C.where.terminal), inner, 'muted'));
+  } else if (st.status === 'done' && ['check', 'file'].includes(beat.verify.kind)) {
+    // What the file holds, beside the burst; on two lines when one is too long.
+    const one = `${beat.evidence} holds ${st.evidence}`;
+    const ev = !st.evidence || !beat.evidence ? []
+      : width(one) <= room ? [`${t.fg('code', beat.evidence)}${t.fg('text', ' holds ')}${t.fg('code', st.evidence)}`]
+        : [t.fg('code', cut(beat.evidence, room, t.unicode ? '…' : '.')), `${t.fg('text', 'holds ')}${t.fg('code', cut(st.evidence, room - 6, t.unicode ? '…' : '.'))}`];
+    if (isLastBeat) celebrate(ev.length ? ev : para(t, C.beatDone, room, 'text'));
     else rows.push(lead(t, 'verified', t.fg('ok', C.beatDone)));
   } else if (st.status === 'done' && beat.verify.kind === 'git-clean') {
-    if (isLastBeat) celebrate([t.fg('text', C.cleanCopy)]);
+    if (isLastBeat) celebrate(para(t, C.cleanCopy, room, 'text'));
     else rows.push(lead(t, 'verified', t.fg('ok', C.cleanCopy)));
   } else if (st.status === 'done') {
     const f = st.feedback;
@@ -562,11 +634,13 @@ function footerRows(ctx, { beat, step, content, isLastBeat }) {
       rows.push(t.fg('ok', f.kind === 'other' ? C.otherFine : `${t.glyph.check} ${C.answered}`));
       if (f.because) rows.push(...quoted(f.because));
       if (beat.reveal) rows.push(...quoted(beat.reveal));
-      if (f.kind === 'other') rows.push(t.fg('muted', C.stillStuck));
+      if (f.kind === 'other') rows.push(...para(t, C.stillStuck, inner, 'muted'));
     }
-  } else if (st.status === 'waiting' && beat.verify.kind === 'check') {
-    const [a, what, b] = C.watching(beat.watching ?? 'your files');
-    rows.push(lead(t, 'watch', `${t.fg('muted', a)}${t.fg('code', what)}${t.fg('muted', b)}`));
+  } else if (st.status === 'waiting' && st.slowWait) {
+    rows.push(...para(t, `${t.lead('watch')}${C.slowWait}`, inner, 'muted'));
+  } else if (st.status === 'waiting' && ['check', 'file'].includes(beat.verify.kind)) {
+    const [a, what, b] = (st.stale ? C.staleWatch : C.watching)(beat.watching ?? beat.evidence ?? 'your files');
+    rows.push(...para(t, `${t.lead('watch')}${a}\`${what}\`${b}`, inner, 'muted'));
   } else if (beat.verify.kind === 'git-clean' && (st.status === 'waiting' || st.status === 'fail')) {
     const paths = s.git?.paths ?? [];
     if (st.status === 'fail' || paths.length) {
@@ -584,12 +658,12 @@ function footerRows(ctx, { beat, step, content, isLastBeat }) {
     if (f.kind === 'wrong') {
       const box = [];
       if (f.because) {
-        box.push(`${t.bold(t.fg('warn', C.notQuite))} ${t.fg('text', C.trueOfElse)}`, ...quoted(f.because));
+        box.push(...para(t, `**${C.notQuite}** ${C.trueOfElse}`, inner - 2, 'text'), ...quoted(f.because));
         if (f.point) box.push(`${t.lead('hint')}${t.fg('text', C.lookFor)} ${para(t, f.point, inner - 14, 'warn', { quote: true })[0]}`);
       } else if (f.hint) box.push(`${t.bold(t.fg('warn', C.notQuite))}`, ...quoted(f.hint));
-      else box.push(`${t.bold(t.fg('warn', C.notQuite))} ${t.fg('text', C.lookAgain)}`);
+      else box.push(...para(t, `**${C.notQuite}** ${C.lookAgain}`, inner - 2, 'text'));
       rows.push(...hintBox(t, box));
-    } else if (f.kind === 'stuck') rows.push(...hintBox(t, [t.fg('warn', C.fixFirst), ...quoted(f.because), t.fg('muted', C.fixThenPick)]));
+    } else if (f.kind === 'stuck') rows.push(...hintBox(t, [...para(t, C.fixFirst, inner - 2, 'warn'), ...quoted(f.because), ...para(t, C.fixThenPick, inner - 2, 'muted')]));
   }
 
   // The hint box: one rung at a time, the y/n before the exact command.
@@ -599,18 +673,20 @@ function footerRows(ctx, { beat, step, content, isLastBeat }) {
       const rungs = rungsOf(s);
       const r = rungs[st.rung] ?? { kind: 'quote', text: '' };
       const box = [];
-      if (r.kind === 'ask') box.push(...para(t, r.text, inner - 5, 'warn'));
-      else if (r.kind === 'check') box.push(t.fg('muted', C.checkSays), ...para(t, r.text, inner - 5, 'text'));
-      else if (r.kind === 'quote') box.push(...para(t, r.text, inner - 5, 'warn', { quote: true }));
+      const hw = inner - 2 - Math.max(3, width(t.lead('hint')));
+      if (r.kind === 'ask') box.push(...para(t, r.text, hw, 'warn'));
+      else if (r.kind === 'check') box.push(t.fg('muted', C.checkSays), ...para(t, r.text, hw, 'text'));
+      else if (r.kind === 'quote') box.push(...para(t, r.text, hw, 'warn', { quote: true }));
       else box.push(...r.lines.flatMap((b) => {
         const text = (t.caps.win32 && b.win) || withRoot(b.text, s.facts.root, t.caps.win32);
-        return text.includes('`') ? para(t, text, inner - 5, 'text') : chip(t, text, beat.where, Math.min(chipWidth(ctx, beat), inner - 5));
+        return text.includes('`') ? para(t, text, hw, 'text') : chip(t, text, beat.where, Math.min(chipWidth(ctx, beat), hw));
       }));
       const more = st.rung < rungs.length - 1;
-      const lines = box.map((x, i) => (i ? `   ${x}` : `${t.lead('hint')}${x}`));
+      const pad3 = ' '.repeat(Math.max(3, width(t.lead('hint'))));
+      const lines = box.map((x, i) => (i ? `${pad3}${x}` : `${t.lead('hint')}${' '.repeat(Math.max(0, 3 - width(t.lead('hint'))))}${x}`));
       if (more) lines.push(`   ${t.fg('muted', C.pressHAgain)}`);
       rows.push(...hintBox(t, lines));
-    } else if (st.status === 'fail' && hintAvailable(s)) rows.push(`  ${t.fg('muted', C.pressH)}`);
+    } else if (st.status === 'fail' && hintAvailable(s)) rows.push(...para(t, C.pressH, inner - 2, 'muted').map((x) => `  ${x}`));
     else if (st.idle && hintAvailable(s)) rows.push(t.fg('warn', C.stuckOffer));
   }
   if (st.eased && !['done', 'already'].includes(st.status) && s.pos.beat === 0) rows.push(t.fg('muted', C.eased));
@@ -634,9 +710,9 @@ function stepKeys(ctx, { beat, step, content, done, isLastBeat }) {
   const style = TIER_STYLE[tier];
   if (st.confirm) return [mainKey('y', C.k.yes, 'warn', 'black'), key('n', C.k.no)];
   if (done) {
-    const next = isLastBeat ? content.steps[s.pos.step + 1] : null;
+    const next = isLastBeat ? stepsOf(s)[s.pos.step + 1] : null;
     const label = next ? C.k.nextTo(next.title) : C.k.next;
-    return [mainKey('enter', label), key('b', C.k.back), key('m', C.k.map), key('q', C.k.quit)];
+    return [mainKey('enter', label, undefined, undefined, C.k.next), key('b', C.k.back), beat.why.length ? key('w', C.k.why) : null, key('m', C.k.map), key('q', C.k.quit)];
   }
   if (beat.kind === 'type') return [key('enter', C.k.answer), key('esc', C.k.clear), key('ctrl+c', C.k.quit)];
   const hint = hintAvailable(s) ? key('h', st.rung >= 0 ? C.k.moreHelp : st.status === 'fail' ? C.k.help : C.k.hint) : null;
@@ -671,8 +747,10 @@ const OVERLAYS = {
   },
   page(ctx) {
     const { s, t, inner } = ctx;
-    const l = lessonOf(s);
-    const anchor = s.view === 'step' ? `#${stepOf(s).part.toLowerCase().replace(/ /g, '-')}` : '';
+    const step = s.view === 'step' ? stepOf(s) : null;
+    // A warm-up recalls an earlier lesson: its page is that lesson's.
+    const l = step?.part === 'Warm-up' ? lessonOf(s, step.from) : lessonOf(s);
+    const anchor = step && step.part !== 'Warm-up' ? `#${step.part.toLowerCase().replace(/ /g, '-')}` : '';
     const url = `${l.url}${anchor}`;
     const stuck = l.content?.stuck ?? l.stuck;
     return {

@@ -1,7 +1,8 @@
 // Asking the lesson's own check, and git, without blocking the screen. Both
 // run in child processes; the app writes nothing to the practice copy.
 import { execFile } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { readFileSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { lessons } from '../../checks/lessons/index.mjs';
@@ -76,6 +77,19 @@ export function evidence(dir, path) {
     return text.split(/\r?\n/).find((l) => l.trim())?.trim().slice(0, 60) ?? null;
   } catch {
     return null;
+  }
+}
+
+// What a file is now, to tell whether it changed: its time, size and
+// content. An empty string when it doesn't exist, and null when it can't be
+// read just now (another program holds it, or its permissions changed).
+export function stampOf(dir, path) {
+  try {
+    const file = join(dir, path);
+    const { mtimeMs, size } = statSync(file);
+    return `${Math.trunc(mtimeMs)}:${size}:${createHash('sha1').update(readFileSync(file)).digest('hex').slice(0, 12)}`;
+  } catch (error) {
+    return error.code === 'ENOENT' || error.code === 'ENOTDIR' ? '' : null;
   }
 }
 

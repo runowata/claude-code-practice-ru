@@ -2,8 +2,9 @@
 // what a wrong answer gets, how hints open, how help fades and comes back.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { hintAvailable, normalize, rungsOf, stepOf, tierOf, tiersOf, watching } from '../../learn/lib/flow.mjs';
-import { b1Item, driver } from './learn-drive.mjs';
+import { hintAvailable, normalize, rungsOf, stepNote, stepOf, tierOf, tiersOf, watching } from '../../learn/lib/flow.mjs';
+import { parseLesson } from '../../learn/lib/content.mjs';
+import { b1Item, b1Only, courseWith, DEMO_B2, driver } from './learn-drive.mjs';
 
 const at = (step, extra = {}) => {
   const d = driver({ saved: { format: 1, welcomed: true, lessons: { 'b-1': { step, beat: 0, ...extra } } }, ...extra.driver });
@@ -245,7 +246,7 @@ test('the wrong-window guard: a paste or fast typing shows a toast and does noth
 });
 
 test('map and check-only mode: a lesson without a content file watches its check', () => {
-  const d = driver({ saved: { format: 1, welcomed: true } });
+  const d = driver({ course: b1Only, saved: { format: 1, welcomed: true } });
   d.key('m');
   assert.equal(d.state.view, 'map');
   d.key('down');
@@ -287,7 +288,7 @@ test('review fixes: a saved place past the end of a step opens its first beat', 
 
 test('review fixes: a finished lesson stays finished', () => {
   const done = { format: 1, welcomed: true, lessons: { 'b-1': { complete: true, done: ['W1', 'W2'] } } };
-  const d = driver({ saved: done });
+  const d = driver({ course: b1Only, saved: done });
   assert.equal(d.state.view, 'map', 'with every lesson in the app done, the app opens on the map');
   assert.equal(d.state.lesson, 'b-2');
   // Playing it again from the map keeps the badge and the ticks.
@@ -365,22 +366,323 @@ test('review fixes: the status follows the check, with no stale "not yet"', () =
   assert.equal(e.state.beat.status, 'waiting');
 });
 
-test('review fixes: a result that misses an item, or leaves a slow one for r, decides nothing', () => {
+test('review fixes: a result that misses an item decides nothing, and a slow item waits for r', () => {
   const d = at('W3');
   d.send({ type: 'check', lesson: 'b-1', items: [] });
   assert.equal(d.state.beat.status, 'opening');
   d.send({ type: 'check', lesson: 'b-1', items: [{ ...passed, slow: true, pass: false }] });
-  assert.equal(d.state.beat.status, 'opening');
+  assert.equal(d.state.beat.status, 'waiting', 'not "Checking" for ever');
+  assert.equal(d.state.beat.slowWait, true, 'the card says to press r');
   d.key('r');
   assert.equal(d.effects.at(-1).slow, true, 'r runs slow items too');
+});
+
+// Lessons after the first: warm-ups, a third terminal, and fresh checks.
+const demo = courseWith({ 'b-2': DEMO_B2 });
+const onB2 = (b2 = {}, top = {}) => driver({ course: demo, saved: { format: 1, welcomed: true, ...top, lessons: { 'b-1': { complete: true }, 'b-2': b2 } } });
+const item = (pass, hint = '') => ({ index: 0, text: 'x', pass, hint });
+
+test('the grammar: warm-ups in their own section, a fresh check names its file, three places to type', () => {
+  const l = parseLesson(DEMO_B2, 'demo');
+  assert.deepEqual(l.warmup.map((w) => [w.id, w.part, w.from]), [['R1', 'Warm-up', 'b-1'], ['R2', 'Warm-up', 'b-1'], ['R3', 'Warm-up', 'b-1']]);
+  assert.deepEqual(l.steps.map((s) => s.id), ['W1', 'Y1', 'C']);
+  assert.deepEqual(l.steps[1].beats[0].verify, { kind: 'check', items: [0], fresh: true, since: null });
+  const since = parseLesson(DEMO_B2.replace('- verify: check 0 fresh', '- verify: check 0 fresh since W1'), 'demo');
+  assert.equal(since.steps[1].beats[0].verify.since, 'W1');
+  const file = parseLesson(DEMO_B2.replace('- verify: check 0 fresh\n- watching: .practice/b-2-before.txt\n- evidence: .practice/b-2-before.txt', '- verify: file .practice/b-2-plan.txt fresh'), 'demo');
+  assert.deepEqual(file.steps[1].beats[0].verify, { kind: 'file', path: '.practice/b-2-plan.txt', fresh: true, since: null });
+  assert.equal(file.steps[1].beats[0].evidence, '.practice/b-2-plan.txt');
+  assert.throws(() => parseLesson(DEMO_B2.replace('- verify: check 0 fresh', '- verify: self fresh'), 'demo'), /only a check or a file can be fresh/);
+  assert.equal(l.steps[0].beats[0].where, 'shell');
+  assert.throws(() => parseLesson(DEMO_B2.replace('### R1 | Warm-up |', '### W9 | Worked example step 1 of 1 |'), 'demo'), /step heading in the warm-up section/);
+  assert.throws(() => parseLesson(DEMO_B2.replace('### C | Check | Check', '### C | Warm-up | Check'), 'demo'), /warm-up heading in the steps section/);
+  assert.throws(() => parseLesson(DEMO_B2.replace('- evidence: .practice/b-2-before.txt\n- goal', '- goal'), 'demo'), /a fresh check needs an evidence file/);
+  assert.throws(() => parseLesson(DEMO_B2.replace('- where: shell', '- where: browser'), 'demo'), /unknown where browser/);
+  assert.throws(() => parseLesson(DEMO_B2.replace('- skill: snapshot\n- where: shell', '- skill: snapshot\n- from: b-1\n- where: shell'), 'demo'), /only a warm-up names the lesson it comes from/);
+});
+
+test('warm-ups: two open the lesson, a missed skill first, always CHALLENGE, and no part of the climb', () => {
+  const d = onB2({}, { missed: ['exit'] });
+  assert.equal(d.state.view, 'intro');
+  assert.equal(d.state.lesson, 'b-2');
+  d.key('enter');
+  assert.deepEqual(d.state.progress['b-2'].warm, ['R3', 'R1'], 'the missed skill comes first, then the file order');
+  assert.equal(stepOf(d.state).id, 'R3');
+  assert.deepEqual(tiersOf(d.state), ['challenge', 'challenge', 'guided', 'challenge', 'challenge']);
+  d.key('1');
+  assert.equal(d.state.beat.status, 'done');
+  assert.ok(!d.state.missed.includes('exit'), 'recalled at once: the mark clears');
+  d.key('enter');
+  assert.equal(stepOf(d.state).id, 'R1');
+  d.key('2');
+  assert.ok(d.state.missed.includes('status'), 'a wrong pick marks the skill for a later warm-up');
+  d.key('1');
+  d.key('enter');
+  assert.equal(stepOf(d.state).id, 'W1', 'two warm-ups, then the lesson');
+  assert.equal(d.state.view, 'step', 'from a warm-up back to GUIDED is no level-up');
+  // Resuming inside the warm-ups keeps the same two.
+  const r = onB2({ step: 'R1', beat: 0, warm: ['R3', 'R1'] });
+  r.key('enter');
+  assert.equal(stepOf(r.state).id, 'R1');
+  assert.equal(r.state.pos.step, 1);
+  // A typed warm-up answered wrong marks its skill too.
+  const t = onB2({ step: 'R2', beat: 0, warm: ['R2', 'R1'] });
+  t.key('enter');
+  for (const c of 'claude') t.key(c, c);
+  t.key('enter');
+  assert.ok(t.state.missed.includes('save-version'));
+});
+
+test('a fresh check waits for new work, not for what an earlier step left behind', () => {
+  const d = onB2({ step: 'Y1', beat: 0, warm: ['R1', 'R2'], levels: ['challenge'] });
+  d.key('enter');
+  assert.equal(stepOf(d.state).id, 'Y1');
+  const path = '.practice/b-2-before.txt';
+  d.send({ type: 'check', lesson: 'b-2', items: [item(true)], path, stamp: 'A' });
+  assert.equal(d.state.beat.status, 'waiting', 'it passes, but the file is the one W1 made');
+  assert.equal(d.state.beat.stale, true);
+  assert.equal(d.state.progress['b-2'].stamps['Y1.0'], 'A');
+  d.send({ type: 'check', lesson: 'b-2', items: [item(true)], path, stamp: 'A' });
+  assert.equal(d.state.beat.status, 'waiting');
+  d.send({ type: 'check', lesson: 'b-2', items: [item(true)], path: '.practice/other.txt', stamp: 'B' });
+  assert.equal(d.state.beat.status, 'waiting', 'a result about another file decides nothing');
+  d.send({ type: 'check', lesson: 'b-2', items: [item(false, 'lists 1 changed file: src/a.js')], path, stamp: 'C' });
+  assert.equal(d.state.beat.status, 'fail', 'new work that fails says "not yet"');
+  d.send({ type: 'check', lesson: 'b-2', items: [item(true)], path, stamp: 'D' });
+  assert.equal(d.state.beat.status, 'done');
+  // Back after a break, with the work done meanwhile: it counts.
+  const r = onB2({ step: 'Y1', beat: 0, warm: ['R1', 'R2'], levels: ['challenge'], stamps: { 'Y1.0': 'A' } });
+  r.key('enter');
+  r.send({ type: 'check', lesson: 'b-2', items: [item(true)], path, stamp: 'B' });
+  assert.equal(r.state.beat.status, 'already');
+  // Playing the lesson again from its start forgets the old files.
+  const again = onB2({ complete: true, warm: ['R1', 'R2'], stamps: { 'Y1.0': 'A' } });
+  assert.equal(again.state.view, 'map');
+  again.key('up');
+  again.key('enter');
+  assert.equal(again.state.view, 'intro');
+  again.key('enter');
+  assert.deepEqual(again.state.progress['b-2'].stamps, {});
 });
 
 test('review fixes: closing the map the app opened on opens its lesson', () => {
   // Every lesson in the app is done, so the app opens on the map, at the next
   // lesson, which has no content file yet.
-  const d = driver({ saved: { format: 1, welcomed: true, lessons: { 'b-1': { complete: true } } } });
+  const d = driver({ course: b1Only, saved: { format: 1, welcomed: true, lessons: { 'b-1': { complete: true } } } });
   assert.equal(d.state.view, 'map');
   d.key('m');
   assert.equal(d.state.view, 'checkonly');
   assert.equal(d.state.lesson, 'b-2');
+});
+
+test('a file check is done once its file holds a line, and a fresh one once it changed', () => {
+  const text = DEMO_B2.replace('- verify: check 0 fresh\n- watching: .practice/b-2-before.txt\n- evidence: .practice/b-2-before.txt', '- verify: file .practice/b-2-plan.txt fresh');
+  const d = driver({ course: courseWith({ 'b-2': text }), saved: { format: 1, welcomed: true, lessons: { 'b-1': { complete: true }, 'b-2': { warm: ['R1', 'R2'], done: ['R1', 'R2'], step: 'W1', beat: 0 } } } });
+  d.key('enter');
+  d.send({ type: 'check', lesson: 'b-2', items: [{ index: 0, text: 'x', pass: true, hint: '' }] });
+  assert.equal(d.state.beat.status, 'already');
+  const out = d.key('enter');
+  // Opening Y1 asks for its file's state now, before the learner touches it.
+  assert.deepEqual(out.find((e) => e.type === 'stamp'), { type: 'stamp', key: 'Y1.0', path: '.practice/b-2-plan.txt' });
+  assert.equal(d.state.view, 'levelup');
+  assert.ok(d.key('enter').some((e) => e.type === 'file' && e.path === '.practice/b-2-plan.txt'));
+  d.send({ type: 'stamp', key: 'Y1.0', stamp: 'A' });
+  d.send({ type: 'file', path: '.practice/b-2-plan.txt', line: 'src/config.js', stamp: 'A' });
+  assert.equal(d.state.beat.status, 'waiting', 'the file W1 left behind');
+  d.send({ type: 'file', path: '.practice/other.txt', line: 'x', stamp: 'B' });
+  assert.equal(d.state.beat.status, 'waiting', 'another file decides nothing');
+  d.send({ type: 'file', path: '.practice/b-2-plan.txt', line: null, stamp: 'B' });
+  d.key('r');
+  d.send({ type: 'file', path: '.practice/b-2-plan.txt', line: null, stamp: 'B' });
+  assert.equal(d.state.beat.status, 'fail');
+  assert.match(d.state.beat.fail.hint, /\.practice\/b-2-plan\.txt has no line/);
+  d.send({ type: 'file', path: '.practice/b-2-plan.txt', line: 'src/config.js', stamp: 'C' });
+  assert.equal(d.state.beat.status, 'done');
+  assert.equal(d.state.beat.evidence, 'src/config.js');
+});
+
+test('fresh since: the file is compared with how it was when an earlier step opened', () => {
+  const text = DEMO_B2.replace('- verify: check 0 fresh', '- verify: check 0 fresh since W1');
+  const d = driver({ course: courseWith({ 'b-2': text }), saved: { format: 1, welcomed: true, lessons: { 'b-1': { complete: true }, 'b-2': { warm: ['R1'], step: 'R1', beat: 0 } } } });
+  d.key('enter');
+  d.key('1');
+  const out = d.key('enter');
+  assert.equal(stepOf(d.state).id, 'W1');
+  assert.deepEqual(out.find((e) => e.type === 'stamp'), { type: 'stamp', key: 'Y1.0', path: '.practice/b-2-before.txt' });
+});
+
+// A lesson whose help goes up and down: new skills are GUIDED, `status`
+// (from lesson 1) is HINTED.
+const SAW = DEMO_B2.replace(/## steps[\s\S]*$/, `## steps
+
+### W1 | Worked example step 1 of 3 | New
+- tier: guided
+- skill: brand-new
+- where: claude
+- beat: do
+- verify: self
+- goal: "Do it."
+
+### W2 | Worked example step 2 of 3 | Old
+- tier: hinted
+- skill: status
+- where: claude
+- beat: do
+- verify: self
+- goal: "Do it."
+
+### W3 | Worked example step 3 of 3 | New again
+- tier: guided
+- skill: other-new
+- where: claude
+- beat: do
+- verify: self
+- goal: "Do it."
+
+### Y1 | Your turn step 1 of 1 | Yours
+- tier: hinted
+- skill: brand-new
+- where: claude
+- beat: do
+- verify: self
+- goal: "Do it."
+
+### C | Check | Check
+- tier: challenge
+- skill: check
+- where: terminal
+- beat: do
+- verify: self
+- goal: "Do it."
+`);
+
+test('a level-up shows only when the help stays lower; a single harder step gets a line instead', () => {
+  const d = driver({ course: courseWith({ 'b-2': SAW }), saved: { format: 1, welcomed: true, lessons: { 'b-1': { complete: true }, 'b-2': { warm: [], step: 'W1', beat: 0 } } } });
+  d.key('enter');
+  assert.deepEqual(tiersOf(d.state), ['guided', 'hinted', 'guided', 'hinted', 'challenge']);
+  d.key('space');
+  assert.equal(stepOf(d.state).id, 'W2');
+  assert.equal(d.state.view, 'step', 'W3 gets more help again: no level-up');
+  assert.equal(stepNote(d.state), 'hinted');
+  d.key('space');
+  assert.equal(stepNote(d.state), null);
+  d.key('b');
+  assert.equal(stepNote(d.state), 'hinted', 'going back keeps the line');
+  d.key('space');
+  d.key('space');
+  assert.equal(d.state.view, 'levelup', 'from Y1 on the help stays lower');
+  assert.equal(d.state.levelTo, 'hinted');
+});
+
+test('review fixes: a slow item clears an old "not yet", and r shows the run', () => {
+  const d = at('C', { levels: ['hinted', 'challenge'] });
+  const slowItem = { index: 0, text: 'x', pass: false, slow: true, hint: '' };
+  d.send({ type: 'check', lesson: 'b-1', items: [empty] });
+  d.key('r');
+  d.send({ type: 'check', lesson: 'b-1', items: [missing] });
+  assert.equal(d.state.beat.status, 'fail');
+  d.send({ type: 'check', lesson: 'b-1', items: [slowItem] });
+  assert.equal(d.state.beat.status, 'waiting');
+  assert.equal(d.state.beat.fail, null, 'the old message goes');
+  assert.equal(d.state.beat.slowWait, true);
+  d.key('r');
+  assert.equal(d.state.beat.status, 'opening', 'r shows that the slow part runs');
+  d.send({ type: 'check-error', lesson: 'b-1', message: 'it took too long' });
+  assert.equal(d.state.beat.status, 'broken');
+  d.send({ type: 'check', lesson: 'b-1', items: [slowItem] });
+  assert.equal(d.state.beat.status, 'waiting');
+  assert.equal(d.state.beat.error, null);
+});
+
+test('review fixes: a warm-up leaves an ease for the lesson\'s own step, and a missed mark is saved', () => {
+  const text = DEMO_B2.replace('### W1 | Worked example step 1 of 1 | Save the list\n- tier: guided\n- skill: snapshot', '### W1 | Worked example step 1 of 1 | Save the list\n- tier: hinted\n- skill: status');
+  const d = driver({ course: courseWith({ 'b-2': text }), saved: { format: 1, welcomed: true, eased: ['status'], lessons: { 'b-1': { complete: true } } } });
+  d.key('enter');
+  assert.equal(stepOf(d.state).id, 'R1');
+  assert.equal(d.state.beat.eased, false, 'no "more help" line on a warm-up');
+  assert.deepEqual(d.state.eased, ['status']);
+  const out = d.key('2');
+  assert.ok(d.state.missed.includes('status'));
+  assert.ok(out.some((e) => e.type === 'save'), 'the mark is saved at once');
+  d.key('1');
+  d.key('enter');
+  assert.equal(stepOf(d.state).id, 'R2');
+  d.key('enter');
+  d.key('enter');
+  assert.equal(stepOf(d.state).id, 'W1');
+  assert.equal(tierOf(d.state), 'guided', 'W1 comes back one tier easier');
+  // Back to a warm-up just missed, answered right: the mark stays for later.
+  const r = driver({ course: courseWith({ 'b-2': text }), saved: { format: 1, welcomed: true, lessons: { 'b-1': { complete: true }, 'b-2': { warm: ['R1', 'R3'], step: 'R1', beat: 0 } } } });
+  r.key('enter');
+  r.key('2');
+  r.key('1');
+  r.key('enter');
+  assert.equal(stepOf(r.state).id, 'R3');
+  r.key('b');
+  assert.equal(stepOf(r.state).id, 'R1');
+  r.key('1');
+  assert.ok(r.state.missed.includes('status'));
+});
+
+test('review fixes: a recall question marks the skill it recalls, and an unreadable file decides nothing', () => {
+  const text = DEMO_B2.replace('- accept: claude --version', '- skill: save-version\n- accept: claude --version').replace('- skill: save-version\n- from: b-1', '- skill: check\n- from: b-1');
+  const d = driver({ course: courseWith({ 'b-2': text }), saved: { format: 1, welcomed: true, lessons: { 'b-1': { complete: true }, 'b-2': { warm: ['R2'], step: 'R2', beat: 0 } } } });
+  d.key('enter');
+  for (const c of 'claude') d.key(c, c);
+  d.key('enter');
+  assert.ok(d.state.missed.includes('save-version'), 'the beat\'s skill, not the step\'s');
+  assert.ok(!d.state.missed.includes('check'));
+  const y = onB2({ step: 'Y1', beat: 0, warm: ['R1', 'R2'], levels: ['challenge'] });
+  y.key('enter');
+  y.send({ type: 'check', lesson: 'b-2', items: [item(true)], path: '.practice/b-2-before.txt', stamp: null });
+  assert.deepEqual(y.state.progress['b-2'].stamps, {}, 'no stamp from a file that could not be read');
+  assert.equal(y.state.beat.status, 'opening');
+  y.send({ type: 'stamp', key: 'Y1.0', stamp: null });
+  assert.deepEqual(y.state.progress['b-2'].stamps, {});
+});
+
+test('review fixes: a FAIL about a slow item keeps its hints when a poll leaves that item out', () => {
+  const d = at('C', { levels: ['hinted', 'challenge'] });
+  // The 2-second poll runs the check without slow items: they come back as placeholders.
+  const placeholder = { index: 0, text: passed.text, pass: false, slow: true, hint: '' };
+  const slowFail = { ...passed, pass: false, hint: 'The tool exited with code 0, not 2.' };
+  d.send({ type: 'check', lesson: 'b-1', items: [placeholder] });
+  assert.equal(d.state.beat.slowWait, true);
+  d.key('r');
+  d.send({ type: 'check', lesson: 'b-1', items: [slowFail] });
+  assert.equal(d.state.beat.status, 'fail');
+  d.key('h');
+  assert.equal(d.state.beat.rung, 0);
+  d.send({ type: 'check', lesson: 'b-1', items: [placeholder] });
+  assert.equal(d.state.beat.status, 'fail', 'the poll knows nothing new about the slow item');
+  assert.equal(d.state.beat.rung, 0, 'the hint on screen stays');
+  assert.ok(hintAvailable(d.state));
+  d.key('r');
+  assert.equal(d.state.beat.status, 'opening', 'r runs the slow item again');
+  d.send({ type: 'check', lesson: 'b-1', items: [passed] });
+  assert.equal(d.state.beat.status, 'done');
+});
+
+test('review fixes: a bottom rung eases its skill from the next step on, not the rest of its own step', () => {
+  const text = DEMO_B2.replace('- where: shell\n- beat: do\n- verify: check 0\n', '- where: shell\n- beat: do\n- verify: self\n- goal: "Open a terminal."\n- bottom: "git status"\n- beat: do\n- verify: check 0\n');
+  const d = driver({ course: courseWith({ 'b-2': text }), saved: { format: 1, welcomed: true, lessons: { 'b-1': { complete: true }, 'b-2': { warm: [], step: 'W1', beat: 0 } } } });
+  d.key('enter');
+  d.key('h');
+  assert.equal(d.state.beat.confirm, true);
+  d.key('y');
+  assert.deepEqual(d.state.eased, ['snapshot']);
+  d.key('space');
+  assert.deepEqual([stepOf(d.state).id, d.state.pos.beat], ['W1', 1]);
+  assert.equal(d.state.progress['b-2'].easedSteps.W1, undefined, 'the rest of W1 is not eased');
+  assert.deepEqual(d.state.eased, ['snapshot'], 'the ease waits for the next step');
+  d.send({ type: 'check', lesson: 'b-2', items: [item(true)] });
+  d.key('enter');
+  assert.equal(stepOf(d.state).id, 'Y1');
+  assert.equal(d.state.progress['b-2'].easedSteps.Y1, true);
+  assert.deepEqual(d.state.eased, []);
+});
+
+test('review fixes: a stuck option may say what the learner saw in the app\'s own words', () => {
+  const l = parseLesson(DEMO_B2.replace('- wrong: "`/usage`"\n- because: "Usage is something else."', '- stuck: a plan with no test\n- because: "Usage is something else."'), 'demo');
+  assert.deepEqual(l.warmup[0].beats[0].options[1], { kind: 'stuck', text: 'a plan with no test', quoted: false, because: 'Usage is something else.' });
 });
