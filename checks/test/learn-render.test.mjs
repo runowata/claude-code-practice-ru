@@ -91,7 +91,7 @@ test('review fixes: paths are quoted and measured, toasts show everywhere, no hi
   for (const [cols, rows] of SIZES) for (const l of render(wide.state, { cols, rows }, t)) assert.ok(width(l) <= cols - 1);
   // The wrong-window note shows on the welcome screen too.
   wide.send({ type: 'paste', text: 'claude' });
-  assert.match(render(wide.state, { cols: 100, rows: 30 }, t).map(strip).join('\n'), /Type it in your other terminal/);
+  assert.match(render(wide.state, { cols: 100, rows: 30 }, t).map(strip).join('\n'), /Введите её во втором терминале/);
   // "Less help": the exact command uses the real folder, not the placeholder.
   const less = driver({ saved: { format: 1, welcomed: true, lessons: { 'b-1': { lessHelp: true, step: 'W3' } } } });
   less.key('enter');
@@ -138,7 +138,7 @@ test('lessons after the first: page links, Windows bottom lines, slow checks and
   d.key('enter');
   const draw = (caps) => render(d.state, { cols: 100, rows: 40 }, theme({ ...CAPS.full, ...caps })).join('\n');
   const links = [...draw({ links: true }).matchAll(/\x1b\]8;;([^\x07]*)\x07/g)].map((m) => m[1]).filter(Boolean);
-  const page = 'https://github.com/wesammustafa/Claude-Code-Everything-You-Need-to-Know/blob/main/docs/beginner/';
+  const page = 'https://github.com/runowata/claude-code-ru/blob/main/docs/beginner/';
   assert.ok(links.includes(`${page}02-permission-modes-and-plan-mode.md#watch-out`), links.join(' '));
   assert.ok(links.includes(`${page}05-project-memory.md#worked-example`), links.join(' '));
   // The bottom rung, on Windows, shows the Windows line.
@@ -154,7 +154,7 @@ test('lessons after the first: page links, Windows bottom lines, slow checks and
   const slow = driver({ saved: { format: 1, welcomed: true, lessons: { 'b-1': { step: 'C', beat: 0, levels: ['hinted', 'challenge'] } } } });
   slow.key('enter');
   slow.send({ type: 'check', lesson: 'b-1', items: [{ index: 0, text: 'x', pass: false, slow: true, hint: '' }] });
-  assert.match(strip(render(slow.state, { cols: 100, rows: 40 }, theme(CAPS.full)).join('\n')), /takes a while, so it runs only when you ask: press r/);
+  assert.match(strip(render(slow.state, { cols: 100, rows: 40 }, theme(CAPS.full)).join('\n')), /запускается только по вашей/);
 });
 
 test('every lesson in the app: every beat fits the window, and nothing is cut at 80x24 or larger', async () => {

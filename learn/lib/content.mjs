@@ -37,7 +37,7 @@ export const PATH = [
   { id: 'b-5', page: 'docs/beginner/05-project-memory.md', minutes: 'about 20 minutes' },
   { id: 'b-capstone', page: 'docs/beginner/capstone.md', minutes: '30 to 60 minutes' },
 ];
-export const GUIDE = 'https://github.com/wesammustafa/Claude-Code-Everything-You-Need-to-Know';
+export const GUIDE = 'https://github.com/runowata/claude-code-ru';
 
 function value(raw) {
   const q = raw.match(/^"(.*)"$/);

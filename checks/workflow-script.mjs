@@ -240,11 +240,11 @@ function literalObject(tokens, j) {
   };
   function value(k) {
     const t = tokens[k];
-    if (!t) fail('nothing', t);
+    if (!t) fail('пропуск вместо значения', t);
     if (t.type === 'string') return [k + 1, t.value];
     if (t.type === 'number') return [k + 1, Number(t.value.replace(/_/g, '').replace(/n$/, ''))];
     if (t.type === 'template') {
-      if (t.subst) fail('a template string with `${...}`', t);
+      if (t.subst) fail('шаблонную строку с `${...}`', t);
       return [k + 1, t.value];
     }
     if ((is(t, '-') || is(t, '+')) && tokens[k + 1]?.type === 'number') {
@@ -253,14 +253,14 @@ function literalObject(tokens, j) {
     }
     if (t.type === 'name') {
       if (t.value in LITERAL_NAMES) return [k + 1, LITERAL_NAMES[t.value]];
-      if (['function', 'async', 'class'].includes(t.value) || is(tokens[k + 1], '=>')) fail('a function', t);
+      if (['function', 'async', 'class'].includes(t.value) || is(tokens[k + 1], '=>')) fail('функцию', t);
       const [text, after] = chain(tokens, k);
-      if (is(tokens[after], '(')) fail(`a function call, \`${text}(...)\``, t);
-      fail(`a variable, \`${text}\``, t);
+      if (is(tokens[after], '(')) fail(`вызов функции, \`${text}(...)\``, t);
+      fail(`переменную, \`${text}\``, t);
     }
     if (is(t, '{')) return object(k);
     if (is(t, '[')) return array(k);
-    if (is(t, '...')) fail('a spread, `...`', t);
+    if (is(t, '...')) fail('spread, `...`', t);
     if (is(t, '(')) {
       // `(x) => ...` is a function; anything else in parentheses is an expression.
       let depth = 0;
@@ -269,23 +269,23 @@ function literalObject(tokens, j) {
         if (is(tokens[close], '(')) depth += 1;
         else if (is(tokens[close], ')') && --depth === 0) break;
       }
-      fail(is(tokens[close + 1], '=>') ? 'a function' : 'an expression in parentheses', t);
+      fail(is(tokens[close + 1], '=>') ? 'функцию' : 'выражение в скобках', t);
     }
-    return fail(`an expression, \`${t.value}\``, t);
+    return fail(`выражение, \`${t.value}\``, t);
   }
   // After a value, a comma or the closing bracket must follow.
   function separator(k, close) {
     const t = tokens[k];
     if (is(t, ',')) return [k + 1, false];
     if (is(t, close)) return [k + 1, true];
-    if (t && (is(t, '(') || is(t, '.') || is(t, '?.'))) fail('a function call or a property of a value', t);
-    return fail(t ? `an expression, \`${t.value}\`` : 'nothing', t);
+    if (t && (is(t, '(') || is(t, '.') || is(t, '?.'))) fail('вызов функции или свойство значения', t);
+    return fail(t ? `выражение, \`${t.value}\`` : 'пропуск вместо значения', t);
   }
   function array(k) {
     const list = [];
     let at = k + 1;
     while (!is(tokens[at], ']')) {
-      if (is(tokens[at], '...')) fail('a spread, `...`', tokens[at]);
+      if (is(tokens[at], '...')) fail('spread, `...`', tokens[at]);
       const [next, item] = value(at);
       list.push(item);
       const [after, done] = separator(next, ']');
@@ -299,15 +299,15 @@ function literalObject(tokens, j) {
     let at = k + 1;
     while (!is(tokens[at], '}')) {
       const t = tokens[at];
-      if (!t) fail('nothing', t);
-      if (is(t, '...')) fail('a spread, `...`', t);
-      if (is(t, '[')) fail('a computed key, `[...]`', t);
-      if (!['name', 'string', 'number'].includes(t.type)) fail(`an expression, \`${t.value}\``, t);
-      if (t.type === 'name' && ['get', 'set', 'async'].includes(t.value) && tokens[at + 1]?.type === 'name') fail('a function', t);
+      if (!t) fail('пропуск вместо значения', t);
+      if (is(t, '...')) fail('spread, `...`', t);
+      if (is(t, '[')) fail('вычисляемый ключ, `[...]`', t);
+      if (!['name', 'string', 'number'].includes(t.type)) fail(`выражение, \`${t.value}\``, t);
+      if (t.type === 'name' && ['get', 'set', 'async'].includes(t.value) && tokens[at + 1]?.type === 'name') fail('функцию', t);
       const after = tokens[at + 1];
-      if (is(after, '(')) fail(`a function, \`${t.value}()\``, t);
-      if (is(after, ',') || is(after, '}')) fail(`a variable, \`${t.value}\``, t);
-      if (!is(after, ':')) fail(after ? `an expression, \`${after.value}\`` : 'nothing', after);
+      if (is(after, '(')) fail(`функцию, \`${t.value}()\``, t);
+      if (is(after, ',') || is(after, '}')) fail(`переменную, \`${t.value}\``, t);
+      if (!is(after, ':')) fail(after ? `выражение, \`${after.value}\`` : 'пропуск вместо значения', after);
       const [next, item] = value(at + 2);
       fields[t.value] = item;
       const [rest, done] = separator(next, '}');
@@ -367,7 +367,7 @@ export function readWorkflow(text, { needArgs = false, needAgentCall = false } =
     const found = exp ? source.slice(exp.start).split(/\r?\n/)[0].trim() : '';
     return { problem: 'first', found: found.length > 40 ? `${found.slice(0, 40)}...` : found };
   }
-  if (!is(open, '{')) return { problem: 'literal', what: 'something other than an object literal', line: eq.line };
+  if (!is(open, '{')) return { problem: 'literal', what: 'не литерал объекта', line: eq.line };
   let meta;
   try {
     meta = literalObject(tokens, 4);

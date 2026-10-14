@@ -87,8 +87,8 @@ export function committedIgnore(repo, probe) {
 // What to do when committedIgnore finds no committed rule, given the line
 // the Learner should add, such as `.claude/worktrees/`.
 export function ignoreHint(result, line) {
-  if (result.problem === 'negated') return `Line ${result.line} of \`${result.source}\`, \`${result.pattern}\`, keeps \`${line}\` from being ignored. Delete it, add the line \`${line}\` to \`.gitignore\` and commit.`;
-  if (result.problem === 'exclude') return `Only \`.git/info/exclude\` ignores \`${line}\`, and git never commits that file, so your teammates don't get the rule. Add the line \`${line}\` to \`.gitignore\` and commit it.`;
-  if (result.problem === 'uncommitted') return `\`${result.source}\` ignores \`${line}\`, but that rule isn't committed. Run \`git add ${result.source}\` and commit it.`;
-  return `No committed \`.gitignore\` ignores \`${line}\`. Add the line \`${line}\` to \`.gitignore\` and commit it. A rule in your global git excludes file doesn't count: it isn't in the repository.`;
+  if (result.problem === 'negated') return `Строка ${result.line} в \`${result.source}\`, \`${result.pattern}\`, не даёт игнорировать \`${line}\`. Удалите её, добавьте строку \`${line}\` в \`.gitignore\` и закоммитьте.`;
+  if (result.problem === 'exclude') return `\`${line}\` игнорирует только \`.git/info/exclude\`, а git никогда не коммитит этот файл, поэтому у коллег этого правила не будет. Добавьте строку \`${line}\` в \`.gitignore\` и закоммитьте.`;
+  if (result.problem === 'uncommitted') return `\`${result.source}\` игнорирует \`${line}\`, но это правило не закоммичено. Выполните \`git add ${result.source}\` и закоммитьте.`;
+  return `Ни один закоммиченный \`.gitignore\` не игнорирует \`${line}\`. Добавьте строку \`${line}\` в \`.gitignore\` и закоммитьте. Правило в вашем глобальном файле исключений git не считается: его нет в репозитории.`;
 }

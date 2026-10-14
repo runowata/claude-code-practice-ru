@@ -6,7 +6,7 @@
 // the hook fire in a session is self-checked.
 import { committedMode, editWriteScripts, missingJq, runCommitted } from '../hooks.mjs';
 
-export const title = 'Enforce a rule with a hook';
+export const title = 'Закрепите правило с помощью hook';
 
 const HOOK = '.claude/hooks/protect-files.sh';
 const SETTINGS = '.claude/settings.json';
@@ -26,42 +26,42 @@ const CASES = [
 
 export const items = [
   {
-    text: '`.claude/hooks/protect-files.sh` is committed and executable',
+    text: '`.claude/hooks/protect-files.sh` закоммичен и исполняемый',
     check(repo) {
       const mode = committedMode(repo, HOOK);
-      if (mode === null) return repo.exists(HOOK) ? `${HOOK} is not committed. Run \`git add ${HOOK}\` and commit it.` : `There is no ${HOOK}. Copy the hook from the lesson's Worked example there.`;
-      return mode === '100755' ? true : `${HOOK} isn't executable, so Claude Code can't run it. Run \`chmod +x ${HOOK}\`, then \`git add ${HOOK}\` and commit.`;
+      if (mode === null) return repo.exists(HOOK) ? `${HOOK} не закоммичен. Выполните \`git add ${HOOK}\` и закоммитьте его.` : `Файла ${HOOK} нет. Скопируйте hook из раздела «Разбор на примере» урока.`;
+      return mode === '100755' ? true : `${HOOK} не исполняемый, поэтому Claude Code не может его запустить. Выполните \`chmod +x ${HOOK}\`, затем \`git add ${HOOK}\` и закоммитьте.`;
     },
   },
   {
-    text: 'the committed `.claude/settings.json` runs it as a `PreToolUse` hook for Edit and Write',
+    text: 'закоммиченный `.claude/settings.json` запускает его как hook `PreToolUse` для Edit и Write',
     check(repo) {
       let text;
       try {
         text = repo.git('show', `HEAD:${SETTINGS}`);
       } catch {
-        return `There is no committed ${SETTINGS}. Add the hook's settings from the lesson to it and commit.`;
+        return `Закоммиченного ${SETTINGS} нет. Добавьте в него настройки hook из урока и закоммитьте.`;
       }
       let value;
       try {
         value = JSON.parse(text);
       } catch (error) {
-        return `The committed ${SETTINGS} is not valid JSON: ${error.message}`;
+        return `Закоммиченный ${SETTINGS} — не корректный JSON: ${error.message}`;
       }
-      return editWriteScripts(value).includes(HOOK) ? true : `${SETTINGS} doesn't run protect-files.sh as a PreToolUse hook with a matcher for Edit and Write, such as \`"matcher": "Edit|Write"\`.`;
+      return editWriteScripts(value).includes(HOOK) ? true : `${SETTINGS} не запускает protect-files.sh как hook PreToolUse с matcher для Edit и Write, например \`"matcher": "Edit|Write"\`.`;
     },
   },
   {
-    text: 'the committed hook blocks `.env` files, but not `.env.example`, anything in a `secrets/` folder, `package-lock.json` and `.git/`, and allows the rest',
+    text: 'закоммиченный hook блокирует файлы `.env` (но не `.env.example`), всё в папке `secrets/`, `package-lock.json` и `.git/`, а остальное пропускает',
     check(repo) {
-      if (committedMode(repo, HOOK) === null) return `Commit ${HOOK}: the check runs the committed script, the one your teammates get.`;
+      if (committedMode(repo, HOOK) === null) return `Закоммитьте ${HOOK}: проверка запускает закоммиченный скрипт — тот, который получат ваши коллеги.`;
       const wrong = [];
       for (const [path, want] of CASES) {
         const run = runCommitted(repo, HOOK, path, 'Write');
-        if (run.error) return `The hook couldn't run: ${run.error.message}`;
-        if (missingJq(run)) return 'The hook needs `jq`, which isn\'t installed. Install it and run the check again.';
-        if (run.status !== want) wrong.push(`${path} gave exit ${run.status}, expected ${want}`);
-        else if (want === 2 && !run.stderr.trim()) wrong.push(`${path} was blocked without a reason on stderr for Claude`);
+        if (run.error) return `Не удалось запустить hook: ${run.error.message}`;
+        if (missingJq(run)) return 'Hook нужен `jq`, а он не установлен. Установите его и запустите проверку снова.';
+        if (run.status !== want) wrong.push(`${path}: код выхода ${run.status}, ожидался ${want}`);
+        else if (want === 2 && !run.stderr.trim()) wrong.push(`${path} заблокирован без объяснения причины в stderr для Claude`);
       }
       return wrong.length ? `${wrong.join('; ')}.` : true;
     },

@@ -8,9 +8,9 @@ import { isAbsolute, posix } from 'node:path';
 import { homedir } from 'node:os';
 import { frontmatter } from '../frontmatter.mjs';
 
-export const title = 'Organize project memory and see what loaded';
+export const title = 'Упорядочите память проекта и посмотрите, что загрузилось';
 
-const START = 'Start the session with `claude --settings .practice/i-2-hook.json`, the hook file from the lesson';
+const START = 'запустите сессию командой `claude --settings .practice/i-2-hook.json` (файл хука взят из урока)';
 
 function committed(repo, path) {
   try {
@@ -106,40 +106,40 @@ function scopedRules(repo) {
 
 export const items = [
   {
-    text: 'a committed CLAUDE.md imports a file with `@path`, and the file exists',
+    text: 'в закоммиченном CLAUDE.md есть импорт файла через `@путь`, и этот файл существует',
     check(repo) {
       const memory = committedMemory(repo);
-      if (!memory) return 'There is no committed CLAUDE.md. Commit the one you organize in this lesson.';
+      if (!memory) return 'Закоммиченного CLAUDE.md нет. Закоммитьте тот, который вы приводите в порядок в этом уроке.';
       const found = imports(memory.text);
-      if (!found.length) return `The committed ${memory.path} has no @path import outside backticks. Add a line such as \`- npm scripts: @package.json\` and commit it.`;
+      if (!found.length) return `В закоммиченном ${memory.path} нет импорта @путь вне обратных кавычек. Добавьте строку вроде \`- npm scripts: @package.json\` и закоммитьте.`;
       const missing = found.filter((target) => !importExists(repo, memory.path, target));
       if (missing.length < found.length) return true;
-      return `${memory.path} imports ${missing.map((m) => `@${m}`).join(', ')}, but ${missing[0]} doesn't exist. An import path runs until the first space, so a period or comma right after it becomes part of the path: put the import at the end of a line, or follow it with a space.`;
+      return `${memory.path} импортирует ${missing.map((m) => `@${m}`).join(', ')}, но ${missing[0]} не существует. Путь импорта идёт до первого пробела, поэтому точка или запятая сразу после него становится частью пути: поставьте импорт в конец строки или добавьте после него пробел.`;
     },
   },
   {
-    text: 'a committed rule in `.claude/rules/` is scoped with `paths:`, and every scoped rule matches a file in the repository',
+    text: 'закоммиченное правило в `.claude/rules/` ограничено через `paths:`, и каждое такое правило подходит хотя бы к одному файлу репозитория',
     check(repo) {
       const rules = scopedRules(repo);
-      if (!rules.length) return 'No committed file in .claude/rules/ has `paths:` frontmatter. Scope a rule to the files it applies to, such as `test/**/*.js`, and commit it.';
+      if (!rules.length) return 'Ни у одного закоммиченного файла в .claude/rules/ нет frontmatter `paths:`. Ограничьте правило файлами, к которым оно относится, например `test/**/*.js`, и закоммитьте.';
       const files = repo.git('ls-files').split('\n').filter(Boolean);
       const dead = rules.filter((r) => !r.globs.some((g) => files.some(globMatcher(g))));
       if (!dead.length) return true;
-      return dead.map((r) => `${r.path} is scoped to ${r.globs.join(', ')}, which matches no file in the repository, so it never loads.`).join(' ') + ' Fix the pattern to match the files the rule is for, and commit it.';
+      return dead.map((r) => `${r.path} ограничено шаблоном ${r.globs.join(', ')}, который не подходит ни к одному файлу репозитория, поэтому оно никогда не загрузится.`).join(' ') + ' Исправьте шаблон так, чтобы он подходил к файлам, для которых написано правило, и закоммитьте.';
     },
   },
   {
-    text: '`.practice/i-2-loaded.txt` shows the imported file and a scoped rule loading',
+    text: '`.practice/i-2-loaded.txt` показывает загрузку импортированного файла и ограниченного правила',
     local: true,
     check(repo) {
       const log = repo.read('.practice/i-2-loaded.txt');
-      if (log === null) return `There is no load log. ${START}, then ask Claude to read a file that your scoped rule covers.`;
+      if (log === null) return `Журнала загрузки нет. Сначала ${START}, затем попросите Claude прочитать файл, к которому относится ваше правило.`;
       const lines = log.split(/\r?\n/).map((l) => l.split('\t')).filter((p) => p.length >= 2);
       const rules = scopedRules(repo).map((r) => r.path);
-      if (!lines.some(([reason]) => reason === 'include')) return `The log has no \`include\` line, so no imported file loaded. Check the import's path, then ${START[0].toLowerCase()}${START.slice(1)}.`;
+      if (!lines.some(([reason]) => reason === 'include')) return `В журнале нет строки \`include\`, значит, импортированный файл не загрузился. Проверьте путь импорта, затем ${START}.`;
       const loaded = lines.filter(([reason, path]) => reason === 'path_glob_match' && rules.some((r) => path.replace(/\\/g, '/').endsWith(`/${r}`)));
       if (loaded.length) return true;
-      return 'The log shows no scoped rule loading. A scoped rule loads when Claude reads a matching file with its Read tool, not through a shell command. Ask Claude to use its Read tool on a file the rule covers.';
+      return 'В журнале нет загрузки ограниченного правила. Такое правило загружается, когда Claude читает подходящий файл своим инструментом Read, а не командой оболочки. Попросите Claude прочитать инструментом Read файл, к которому относится правило.';
     },
   },
 ];

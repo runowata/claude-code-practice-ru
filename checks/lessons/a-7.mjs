@@ -19,7 +19,7 @@ import { committedMode, missingJq } from '../hooks.mjs';
 import { commitHint, headText, parseJson } from '../marketplace.mjs';
 import { notRun, runStubbed, scratchPath, stderrTail, STUB_SESSION, TIME_LIMIT } from '../stub-claude.mjs';
 
-export const title = 'Put bounds on autonomous runs';
+export const title = 'Ограничения для автономных запусков';
 
 export const SCRIPT = 'scripts/bounded-run.sh';
 export const SLICE = '.practice/a-7-slice.json';
@@ -30,7 +30,7 @@ const OUT = 'result.json';
 const LIMITS = new Set(['error_max_turns', 'error_max_budget_usd']);
 const PATH_TOOLS = new Set(['Read', 'Edit', 'Write', 'NotebookEdit', 'MultiEdit', 'Glob', 'Grep']);
 const SANDBOX = '`"sandbox": {"enabled": true, "failIfUnavailable": true, "allowUnsandboxedCommands": false, "autoAllowBashIfSandboxed": false}`';
-const NARROW = 'Allow one folder or one command per rule, as in `Edit(./src/**)` or `Bash(npm test *)`.';
+const NARROW = 'Разрешайте одной папке или одной команде по правилу, как в `Edit(./src/**)` или `Bash(npm test *)`.';
 const AMOUNT = /^(\d+(\.\d*)?|\.\d+)$/;
 
 const code = (text) => `\`${text}\``;
@@ -43,7 +43,7 @@ const squash = (flag) => flag.split('=')[0].replace(/^-+/, '').replace(/[-_]/g, 
 // or ''.
 function misspelt(args, flag) {
   const typo = args.unknown.find((u) => squash(u) === squash(flag));
-  return typo ? ` Claude Code doesn't know ${code(typo.split('=')[0])}, so it stops with an error before the run starts: write ${code(flag)}.` : '';
+  return typo ? ` Claude Code не знает ${code(typo.split('=')[0])}, поэтому останавливается с ошибкой до начала запуска: напишите ${code(flag)}.` : '';
 }
 
 // The note for a committed file whose working copy differs, or ''.
@@ -52,13 +52,13 @@ function pending(repo, path) {
     repo.git('diff', '--quiet', 'HEAD', '--', path);
     return '';
   } catch {
-    return ` Your copy of ${code(path)} has changes that aren't committed: if they fix this, commit them.`;
+    return ` В вашей копии ${code(path)} есть незакоммиченные изменения: если они это исправляют, закоммитьте их.`;
   }
 }
 
 // Up to three problems, then how many more, then the notes.
 function report(problems, notes = '') {
-  const more = problems.length > 3 ? ` And ${problems.length - 3} more: fix these and run the check again.` : '';
+  const more = problems.length > 3 ? ` И ещё ${problems.length - 3}: исправьте эти и запустите проверку снова.` : '';
   return `${problems.slice(0, 3).join(' ')}${more}${notes}`;
 }
 
@@ -66,10 +66,10 @@ const exitOf = (run) => run.status ?? run.signal;
 
 // How a run ended, for a hint.
 function ended(run) {
-  if (run.timedOut) return `It was still running after ${TIME_LIMIT / 1000} seconds, so the check stopped it.`;
-  if (missingJq(run)) return 'It needs `jq`, which isn\'t installed: install it and run the check again.';
+  if (run.timedOut) return `Скрипт всё ещё работал через ${TIME_LIMIT / 1000} с, поэтому проверка его остановила.`;
+  if (missingJq(run)) return 'Ему нужен `jq`, а он не установлен: установите его и запустите проверку снова.';
   const tail = stderrTail(run);
-  return `It exited with ${exitOf(run)}${tail ? `: ${tail}` : '.'}`;
+  return `Он завершился с кодом ${exitOf(run)}${tail ? `: ${tail}` : '.'}`;
 }
 
 // A path written in the script, relative to the Learner's repository, or
@@ -147,7 +147,7 @@ function noCall(repo, a, script) {
   if (a.calls.length) return null;
   const skipped = notRun(a.run, script);
   if (skipped) return skipped;
-  return `Run as ${usage(script)}, ${code(script)} never ran \`claude -p\`, and the check found no \`claude -p\` call in its text. ${ended(a.run)}${pending(repo, script)}`;
+  return `При запуске как ${usage(script)} ${code(script)} ни разу не запустил \`claude -p\`, и проверка не нашла вызова \`claude -p\` в его тексте. ${ended(a.run)}${pending(repo, script)}`;
 }
 
 // The settings a call passes with --settings: `{ value, path, label }`, or
@@ -161,27 +161,27 @@ function settingsOf(repo, call) {
 
 function loadSettings(repo, call) {
   const raw = call.args.flags.settings;
-  const example = 'such as `--settings .claude/bounded-run.json`';
-  if (raw === undefined) return { none: true, hint: `It passes no settings file: add \`--settings\` with the committed file that holds the bounds, ${example}.${misspelt(call.args, '--settings')}` };
-  if (raw === null || !raw.trim()) return { hint: `\`--settings\` has no file after it: name the committed file that holds the bounds, ${example}.` };
+  const example = 'например `--settings .claude/bounded-run.json`';
+  if (raw === undefined) return { none: true, hint: `Файл настроек не передан: добавьте \`--settings\` с закоммиченным файлом, в котором лежат ограничения, ${example}.${misspelt(call.args, '--settings')}` };
+  if (raw === null || !raw.trim()) return { hint: `После \`--settings\` нет файла: назовите закоммиченный файл с ограничениями, ${example}.` };
   if (raw.trim().startsWith('{')) {
     try {
       const value = JSON.parse(raw);
-      return isObject(value) ? { value, label: 'the inline `--settings` JSON' } : { hint: 'The inline `--settings` JSON isn\'t an object.' };
+      return isObject(value) ? { value, label: 'встроенный JSON в `--settings`' } : { hint: 'Встроенный JSON в `--settings` — не объект.' };
     } catch (error) {
-      return { hint: `The inline \`--settings\` JSON isn't valid JSON: ${error.message}` };
+      return { hint: `Встроенный JSON в \`--settings\` невалиден: ${error.message}` };
     }
   }
-  if (call.fromText && raw.includes('$')) return { hint: `\`--settings ${raw}\` gets its file from a variable the check can't work out: write the path in the script, ${example}.` };
+  if (call.fromText && raw.includes('$')) return { hint: `\`--settings ${raw}\` берёт файл из переменной, которую проверка не может вычислить: напишите путь прямо в скрипте, ${example}.` };
   const path = call.where(raw);
-  if (path === null || path === '') return { hint: `\`--settings\` names ${code(raw)}, which is outside your repository. Pass a file committed in it, ${example}.` };
+  if (path === null || path === '') return { hint: `\`--settings\` указывает на ${code(raw)}, вне вашего репозитория. Передайте файл, закоммиченный в нём, ${example}.` };
   const text = headText(repo, path);
   if (text === null) {
-    return { hint: repo.exists(path) ? `${commitHint(repo, path)} The run reads its bounds from that file.` : `\`--settings\` names ${code(path)}, which doesn't exist. Save the bounds there, as the lesson shows, and commit the file.` };
+    return { hint: repo.exists(path) ? `${commitHint(repo, path)} Запуск читает ограничения из этого файла.` : `\`--settings\` указывает на ${code(path)}, которого нет. Сохраните ограничения туда, как показано в уроке, и закоммитьте файл.` };
   }
   const { value, error } = parseJson(text);
-  if (error) return { hint: `The committed ${code(path)} isn't valid JSON: ${error}${pending(repo, path)}` };
-  if (!isObject(value)) return { hint: `The committed ${code(path)} isn't a JSON object.${pending(repo, path)}` };
+  if (error) return { hint: `Закоммиченный ${code(path)} — невалидный JSON: ${error}${pending(repo, path)}` };
+  if (!isObject(value)) return { hint: `Закоммиченный ${code(path)} — не JSON-объект.${pending(repo, path)}` };
   return { value, path, label: code(path) };
 }
 
@@ -191,19 +191,19 @@ function callProblems(repo, call) {
   const problems = [];
   const spelling = (flag) => misspelt(call.args, flag);
   const mode = flags.permissionMode;
-  if (flags.dangerouslySkipPermissions) problems.push('Drop `--dangerously-skip-permissions`: it is the same as `--permission-mode bypassPermissions`, which skips your permission checks.');
-  if (flags.allowDangerouslySkipPermissions) problems.push('Drop `--allow-dangerously-skip-permissions`: a bounded run never switches to `bypassPermissions`.');
-  if (mode === undefined) problems.push(`It sets no permission mode: add \`--permission-mode dontAsk\`, so every call that would ask for permission is denied.${spelling('--permission-mode')}`);
-  else if (mode === null) problems.push('`--permission-mode` has no mode after it: write `--permission-mode dontAsk`.');
-  else if (mode.startsWith('-')) problems.push(`\`--permission-mode\` has no mode after it, so it takes ${code(mode)} as its value: write \`--permission-mode dontAsk\`.`);
-  else if (mode.toLowerCase() === 'dontask' && mode !== 'dontAsk') problems.push(`Write \`dontAsk\` as Claude Code spells it, not ${code(mode)}.`);
-  else if (mode !== 'dontAsk') problems.push(`It runs in ${code(mode)} mode: use \`--permission-mode dontAsk\`, so every call that would ask for permission is denied.`);
+  if (flags.dangerouslySkipPermissions) problems.push('Уберите `--dangerously-skip-permissions`: это то же самое, что `--permission-mode bypassPermissions`, а он пропускает ваши проверки разрешений.');
+  if (flags.allowDangerouslySkipPermissions) problems.push('Уберите `--allow-dangerously-skip-permissions`: ограниченный запуск никогда не переключается на `bypassPermissions`.');
+  if (mode === undefined) problems.push(`Режим разрешений не задан: добавьте \`--permission-mode dontAsk\`, чтобы каждый вызов, требующий разрешения, отклонялся.${spelling('--permission-mode')}`);
+  else if (mode === null) problems.push('После `--permission-mode` нет режима: напишите `--permission-mode dontAsk`.');
+  else if (mode.startsWith('-')) problems.push(`После \`--permission-mode\` нет режима, поэтому он принимает ${code(mode)} как значение: напишите \`--permission-mode dontAsk\`.`);
+  else if (mode.toLowerCase() === 'dontask' && mode !== 'dontAsk') problems.push(`Пишите \`dontAsk\` так, как его пишет Claude Code, а не ${code(mode)}.`);
+  else if (mode !== 'dontAsk') problems.push(`Он работает в режиме ${code(mode)}: используйте \`--permission-mode dontAsk\`, чтобы каждый вызов, требующий разрешения, отклонялся.`);
 
   const format = flags.outputFormat;
-  if (format === undefined) problems.push(`It doesn't ask for JSON: add \`--output-format json\`.${spelling('--output-format')}`);
-  else if (format === null) problems.push('`--output-format` has no format after it: write `--output-format json`.');
-  else if (format.startsWith('-')) problems.push(`\`--output-format\` has no format after it, so it takes ${code(format)} as its value: write \`--output-format json\`.`);
-  else if (format !== 'json') problems.push(`It asks for \`--output-format ${format}\`: use \`json\`, so the result path holds the run's result as one JSON object.`);
+  if (format === undefined) problems.push(`Он не просит JSON: добавьте \`--output-format json\`.${spelling('--output-format')}`);
+  else if (format === null) problems.push('После `--output-format` нет формата: напишите `--output-format json`.');
+  else if (format.startsWith('-')) problems.push(`После \`--output-format\` нет формата, поэтому он принимает ${code(format)} как значение: напишите \`--output-format json\`.`);
+  else if (format !== 'json') problems.push(`Он просит \`--output-format ${format}\`: используйте \`json\`, чтобы по пути результата лежал результат запуска одним JSON-объектом.`);
 
   const settings = settingsOf(repo, call);
   if (settings.hint) problems.push(settings.hint);
@@ -213,10 +213,10 @@ function callProblems(repo, call) {
 // Whether the task reached the call as its prompt, and where it went if not.
 function taskProblems(a, call) {
   if (call.args.prompt?.includes(a.task) || call.stdin.includes(a.task)) return [];
-  if (call.args.operands.join(' ').includes(a.task)) return ['It passes the task without quotes, so the shell splits it into words and Claude gets only the first. Write `"$1"`, in double quotes.'];
+  if (call.args.operands.join(' ').includes(a.task)) return ['Задача передаётся без кавычек, поэтому оболочка разбивает её на слова, и Claude получает только первое. Напишите `"$1"` в двойных кавычках.'];
   const flag = Object.entries(call.args.flags).find(([, v]) => [v].flat().some((x) => typeof x === 'string' && x.includes(a.task)));
-  if (flag) return [`The task ends up in the value of \`--${flag[0].replace(/[A-Z]/g, (ch) => `-${ch.toLowerCase()}`)}\`, not in the prompt. Write the prompt right after \`-p\`, as in \`claude -p "$1" ...\`.`];
-  return ['The task in its first argument never reaches `claude -p`. Pass it as the prompt, right after `-p`, as in `claude -p "$1" ...`.'];
+  if (flag) return [`Задача попала в значение \`--${flag[0].replace(/[A-Z]/g, (ch) => `-${ch.toLowerCase()}`)}\`, а не в промпт. Напишите промпт сразу после \`-p\`, как в \`claude -p "$1" ...\`.`];
+  return ['Задача из первого аргумента не доходит до `claude -p`. Передайте её как промпт сразу после `-p`, как в `claude -p "$1" ...`.'];
 }
 
 const isStubJson = (text) => {
@@ -229,25 +229,25 @@ const isStubJson = (text) => {
 
 function savedProblems(a) {
   const saved = a.run.saved[`out/${OUT}`];
-  const save = 'Redirect only its standard output to the path in the second argument: `claude -p "$1" ... > "$2"`.';
+  const save = 'Перенаправьте в путь из второго аргумента только его стандартный вывод: `claude -p "$1" ... > "$2"`.';
   if (saved === undefined) {
     const elsewhere = Object.keys(a.run.saved).find((p) => isStubJson(a.run.saved[p]));
-    return [elsewhere ? `It saved the JSON \`claude -p\` printed to ${code(elsewhere)}, not to the path in its second argument. ${save}` : `It didn't save the JSON \`claude -p\` printed to the path in its second argument. ${save}`];
+    return [elsewhere ? `Он сохранил JSON, выведенный \`claude -p\`, в ${code(elsewhere)}, а не по пути из второго аргумента. ${save}` : `Он не сохранил JSON, выведенный \`claude -p\`, по пути из второго аргумента. ${save}`];
   }
-  return isStubJson(saved) ? [] : [`The file at the path in its second argument isn't the JSON \`claude -p\` printed. ${save}`];
+  return isStubJson(saved) ? [] : [`Файл по пути из второго аргумента — не тот JSON, который вывел \`claude -p\`. ${save}`];
 }
 
 function modeHint(repo, script) {
   const mode = committedMode(repo, script);
-  if (mode === null) return repo.exists(script) ? commitHint(repo, script) : `There is no ${code(script)}. Write it as the lesson shows, then commit it.`;
+  if (mode === null) return repo.exists(script) ? commitHint(repo, script) : `Нет файла ${code(script)}. Напишите его, как показано в уроке, затем закоммитьте.`;
   if (mode === '100755') return null;
-  if (mode === '100644') return `${code(script)} isn't executable. Run \`chmod +x ${script}\`, then \`git add ${script}\` and commit. On Windows, run \`git update-index --chmod=+x ${script}\` and commit.`;
-  return `${code(script)} is committed as ${mode === '120000' ? 'a symbolic link' : 'something other than a file'}. Commit the script file itself, and make it executable.`;
+  if (mode === '100644') return `${code(script)} не исполняемый. Выполните \`chmod +x ${script}\`, затем \`git add ${script}\` и закоммитьте. В Windows выполните \`git update-index --chmod=+x ${script}\` и закоммитьте.`;
+  return `${code(script)} закоммичен как ${mode === '120000' ? 'символическая ссылка' : 'не файл'}. Закоммитьте сам файл скрипта и сделайте его исполняемым.`;
 }
 
 export function boundedScript(script = SCRIPT) {
   return {
-    text: `${code(script)} is committed and executable, takes a task and a result path (${usage(script)}), and starts \`claude -p\` in \`dontAsk\` mode with JSON output and a committed \`--settings\` file`,
+    text: `${code(script)} закоммичен и исполняемый, принимает задачу и путь результата (${usage(script)}) и запускает \`claude -p\` в режиме \`dontAsk\` с JSON-выводом и закоммиченным файлом \`--settings\``,
     check(repo) {
       const mode = modeHint(repo, script);
       if (mode) return mode;
@@ -256,13 +256,13 @@ export function boundedScript(script = SCRIPT) {
       if (skipped) return skipped;
       if (!a.print.length) {
         const why = a.stray.length
-          ? 'ran `claude` without `-p` (or `--print`), which starts an interactive session and waits for you. Add `-p`, with the task right after it.'
-          : `never ran \`claude -p\`. ${ended(a.run)} Make the script take the task as its first argument and the result path as its second.`;
-        return `Run as ${usage(script)}, ${code(script)} ${why}${pending(repo, script)}`;
+          ? 'запустил `claude` без `-p` (или `--print`), а это открывает интерактивную сессию, которая ждёт вас. Добавьте `-p` и задачу сразу после него.'
+          : `ни разу не запустил \`claude -p\`. ${ended(a.run)} Пусть скрипт берёт задачу из первого аргумента, а путь результата — из второго.`;
+        return `При запуске как ${usage(script)} ${code(script)} ${why}${pending(repo, script)}`;
       }
       const problems = [];
-      if (a.print.length > 1) problems.push(`With one task, it ran \`claude -p\` ${a.print.length} times. Run it once.`);
-      if (a.stray.length) problems.push('It also ran `claude` without `-p`, which starts an interactive session and waits for you. Run only the `claude -p` call.');
+      if (a.print.length > 1) problems.push(`При одной задаче он запустил \`claude -p\` ${a.print.length} раз. Запускайте один раз.`);
+      if (a.stray.length) problems.push('Он также запустил `claude` без `-p`, а это открывает интерактивную сессию, которая ждёт вас. Оставьте только вызов `claude -p`.');
       problems.push(...taskProblems(a, a.print[0]), ...savedProblems(a));
       problems.push(...new Set(a.print.flatMap((c) => callProblems(repo, c))));
       return problems.length ? report(problems, pending(repo, script)) : true;
@@ -275,31 +275,31 @@ function limitProblems(call) {
   const { flags } = call.args;
   const problems = [];
   const spelling = (flag) => misspelt(call.args, flag);
-  const variable = (flag, value) => `\`${flag} ${value}\` gets its value from a variable the check can't work out: write the number in the script.`;
+  const variable = (flag, value) => `\`${flag} ${value}\` берёт значение из переменной, которую проверка не может вычислить: напишите число прямо в скрипте.`;
   const option = (value) => /^--?[A-Za-z]/.test(value);
-  const taken = (flag, value, what) => `\`${flag}\` has no ${what} after it, so it takes ${code(value)} as its value: write ${what === 'number' ? 'a whole number of 1 or more' : 'an amount in US dollars, above 0'}.`;
+  const taken = (flag, value, what) => `После \`${flag}\` нет ${what === 'number' ? 'числа' : 'суммы'}, поэтому он принимает ${code(value)} как значение: напишите ${what === 'number' ? 'целое число от 1' : 'сумму в долларах США больше 0'}.`;
 
   const turns = flags.maxTurns;
-  if (turns === undefined) problems.push(`It sets no turn limit: add \`--max-turns\` with a whole number of 1 or more.${spelling('--max-turns')}`);
-  else if (turns === null || !turns.trim()) problems.push('`--max-turns` has no number after it: write a whole number of 1 or more.');
+  if (turns === undefined) problems.push(`Лимит ходов не задан: добавьте \`--max-turns\` с целым числом от 1.${spelling('--max-turns')}`);
+  else if (turns === null || !turns.trim()) problems.push('После `--max-turns` нет числа: напишите целое число от 1.');
   else if (option(turns)) problems.push(taken('--max-turns', turns, 'number'));
   else if (call.fromText && turns.includes('$')) problems.push(variable('--max-turns', turns));
-  else if (!/^\d+$/.test(turns)) problems.push(`\`--max-turns ${turns}\` isn't a whole number: write one of 1 or more.`);
-  else if (Number(turns) < 1) problems.push(`\`--max-turns ${turns}\` is below 1: write a whole number of 1 or more.`);
+  else if (!/^\d+$/.test(turns)) problems.push(`\`--max-turns ${turns}\` — не целое число: напишите целое число от 1.`);
+  else if (Number(turns) < 1) problems.push(`\`--max-turns ${turns}\` меньше 1: напишите целое число от 1.`);
 
   const budget = flags.maxBudgetUsd;
-  if (budget === undefined) problems.push(`It sets no spend limit: add \`--max-budget-usd\` with an amount in US dollars, above what a slice of the task costs.${spelling('--max-budget-usd')}`);
-  else if (budget === null || !budget.trim()) problems.push('`--max-budget-usd` has no amount after it: write an amount in US dollars, above 0.');
+  if (budget === undefined) problems.push(`Лимит расходов не задан: добавьте \`--max-budget-usd\` с суммой в долларах США больше стоимости одного среза задачи.${spelling('--max-budget-usd')}`);
+  else if (budget === null || !budget.trim()) problems.push('После `--max-budget-usd` нет суммы: напишите сумму в долларах США больше 0.');
   else if (option(budget)) problems.push(taken('--max-budget-usd', budget, 'amount'));
   else if (call.fromText && budget.includes('$')) problems.push(variable('--max-budget-usd', budget));
-  else if (!AMOUNT.test(budget)) problems.push(`\`--max-budget-usd ${budget}\` isn't an amount: write a number of US dollars, without a \`$\` sign.`);
-  else if (Number(budget) <= 0) problems.push(`\`--max-budget-usd ${budget}\` isn't above 0: write an amount in US dollars, above what a slice of the task costs.`);
+  else if (!AMOUNT.test(budget)) problems.push(`\`--max-budget-usd ${budget}\` — не сумма: напишите число долларов США без знака \`$\`.`);
+  else if (Number(budget) <= 0) problems.push(`\`--max-budget-usd ${budget}\` не больше 0: напишите сумму в долларах США больше стоимости одного среза задачи.`);
   return problems;
 }
 
 export function runLimits(script = SCRIPT) {
   return {
-    text: 'it sets a turn limit and a spend limit',
+    text: 'в нём заданы лимит ходов и лимит расходов',
     check(repo) {
       const a = analysis(repo, script);
       const none = noCall(repo, a, script);
@@ -321,30 +321,30 @@ export function wideReason(rule) {
   const m = rule.trim().match(/^([^()\s]+)(?:\(([\s\S]*)\))?$/);
   if (!m) return null;
   const [, tool, spec] = m;
-  if (tool.includes('*')) return 'matches every tool whose name fits it';
-  if (tool.startsWith('mcp__')) return spec === undefined && tool.split('__').filter(Boolean).length < 3 ? 'lets every tool of that MCP server through' : null;
+  if (tool.includes('*')) return 'подходит ко всем инструментам, чьё имя ему соответствует';
+  if (tool.startsWith('mcp__')) return spec === undefined && tool.split('__').filter(Boolean).length < 3 ? 'пропускает все инструменты этого MCP-сервера' : null;
   const all = spec === undefined || /^\*+$/.test(spec.trim());
   if (tool === 'Bash') {
-    if (all) return 'lets every command through';
+    if (all) return 'пропускает любую команду';
     const s = spec.trim();
-    if (s.startsWith('*')) return 'starts with a wildcard, so it matches commands of every program';
+    if (s.startsWith('*')) return 'начинается с подстановочного знака, поэтому подходит к командам любой программы';
     const program = s.match(/^([^\s*:]+)(?:\s+\*|:\*|\*)$/);
-    return program ? `lets every \`${program[1]}\` command through, whatever its arguments` : null;
+    return program ? `пропускает любую команду \`${program[1]}\` с любыми аргументами` : null;
   }
   if (PATH_TOOLS.has(tool)) {
-    const verb = ['Read', 'Glob', 'Grep'].includes(tool) ? 'read' : 'edit';
-    if (all) return `lets the run ${verb} any file`;
+    const verb = ['Read', 'Glob', 'Grep'].includes(tool) ? 'читать' : 'изменять';
+    if (all) return `позволяет запуску ${verb} любой файл`;
     const s = spec.trim();
     const anchor = s.match(/^(\/\/|~\/|\.\/|\/)?/)[1] ?? '';
     const first = s.slice(anchor.length).split('/')[0];
     if (first && !first.includes('*') && first !== '.' && first !== '..') return null;
-    if (first === '..') return `lets the run ${verb} files outside the project`;
-    if (anchor === '//') return `lets the run ${verb} files anywhere on the disk`;
-    if (anchor === '~/') return `lets the run ${verb} files anywhere in your home folder`;
-    return `lets the run ${verb} files in every folder of the project`;
+    if (first === '..') return `позволяет запуску ${verb} файлы вне проекта`;
+    if (anchor === '//') return `позволяет запуску ${verb} файлы в любом месте диска`;
+    if (anchor === '~/') return `позволяет запуску ${verb} файлы в любом месте вашей домашней папки`;
+    return `позволяет запуску ${verb} файлы в любой папке проекта`;
   }
-  if (all) return `lets every use of \`${tool}\` through`;
-  if (tool === 'WebFetch' && spec.trim() === 'domain:*') return 'lets the run fetch from every domain';
+  if (all) return `пропускает любое использование \`${tool}\``;
+  if (tool === 'WebFetch' && spec.trim() === 'domain:*') return 'позволяет запуску обращаться к любому домену';
   return null;
 }
 
@@ -389,8 +389,8 @@ function projectSettings(repo) {
   const text = headText(repo, PROJECT);
   if (text === null) return {};
   const { value, error } = parseJson(text);
-  if (error) return { hint: `The committed ${code(PROJECT)} isn't valid JSON: ${error}` };
-  return isObject(value) ? { value } : { hint: `The committed ${code(PROJECT)} isn't a JSON object.` };
+  if (error) return { hint: `Закоммиченный ${code(PROJECT)} — невалидный JSON: ${error}` };
+  return isObject(value) ? { value } : { hint: `Закоммиченный ${code(PROJECT)} — не JSON-объект.` };
 }
 
 function ruleProblems(repo, call) {
@@ -415,19 +415,19 @@ function ruleProblems(repo, call) {
 
   const problems = [];
   const writes = allow.filter((a) => gitWrite(a.rule));
-  for (const { rule, label } of writes.slice(0, 2)) problems.push(`${code(rule)} in ${label} lets the run use \`git ${gitWrite(rule)}\`. Take it out: the deny rules must stop it.`);
+  for (const { rule, label } of writes.slice(0, 2)) problems.push(`${code(rule)} (${label}) позволяет запуску использовать \`git ${gitWrite(rule)}\`. Уберите его: это должны останавливать правила deny.`);
   const wide = allow.filter((a) => !gitWrite(a.rule)).map((a) => ({ ...a, why: wideReason(a.rule) })).filter((a) => a.why);
-  for (const { rule, label, why } of wide.slice(0, 3)) problems.push(`${code(rule)} in ${label} ${why}.`);
-  if (wide.length > 3) problems.push(`And ${wide.length - 3} more rules like these.`);
+  for (const { rule, label, why } of wide.slice(0, 3)) problems.push(`${code(rule)} (${label}) ${why}.`);
+  if (wide.length > 3) problems.push(`И ещё ${wide.length - 3} таких правил.`);
   if (wide.length) problems.push(NARROW);
-  if (!own) problems.push(`Nothing the run is given allows a single call, so in \`dontAsk\` mode it can't edit a file or run your tests, and a \`-p\` run in a folder you never trusted leaves out the allow rules in ${code(PROJECT)}. In the settings file's \`permissions.allow\`, allow the folders the task edits and the one command it runs, as in \`"Edit(./src/**)"\` and \`"Bash(npm test *)"\`.`);
+  if (!own) problems.push(`Ничто из выданного запуску не разрешает ни одного вызова, поэтому в режиме \`dontAsk\` он не сможет изменить файл или запустить ваши тесты, а запуск \`-p\` в папке, которой вы не доверяли, не читает правила allow из ${code(PROJECT)}. В \`permissions.allow\` файла настроек разрешите папки, которые правит задача, и одну команду, которую она запускает, как в \`"Edit(./src/**)"\` и \`"Bash(npm test *)"\`.`);
 
   for (const command of ['git commit', 'git push']) {
     if (deny.some((d) => stops(d.rule, command))) continue;
     const exact = deny.find((d) => d.rule.replace(/\s+/g, ' ') === `Bash(${command})`);
     problems.push(exact
-      ? `${code(exact.rule)} in ${exact.label} matches only the bare \`${command}\`, not \`${command} ${command.endsWith('push') ? 'origin main' : '-m "..."'}\`. Write \`Bash(${command} *)\`: the trailing \` *\` also matches the bare command.`
-      : `No deny rule stops \`${command}\`: add \`"Bash(${command} *)"\` to \`permissions.deny\` in the settings file.`);
+      ? `${code(exact.rule)} (${exact.label}) подходит только к голой \`${command}\`, но не к \`${command} ${command.endsWith('push') ? 'origin main' : '-m "..."'}\`. Напишите \`Bash(${command} *)\`: завершающий \` *\` подходит и к голой команде.`
+      : `Ни одно правило deny не останавливает \`${command}\`: добавьте \`"Bash(${command} *)"\` в \`permissions.deny\` файла настроек.`);
   }
   const notes = settings.path ? pending(repo, settings.path) : '';
   return problems.length && notes ? [...problems, notes.trim()] : problems;
@@ -435,7 +435,7 @@ function ruleProblems(repo, call) {
 
 export function narrowRules(script = SCRIPT) {
   return {
-    text: 'every allow rule names one command or one folder, and the deny rules stop `git commit` and `git push`',
+    text: 'каждое правило allow называет одну команду или одну папку, а правила deny останавливают `git commit` и `git push`',
     check(repo) {
       const a = analysis(repo, script);
       const none = noCall(repo, a, script);
@@ -448,23 +448,23 @@ export function narrowRules(script = SCRIPT) {
 
 function sandboxProblems(repo, call) {
   const settings = settingsOf(repo, call);
-  if (settings.none) return [`The run gets no settings file, so nothing turns the sandbox on: pass the bounds file with \`--settings\`, and put ${SANDBOX} in it.`];
+  if (settings.none) return [`Запуск не получает файл настроек, поэтому ничто не включает песочницу (sandbox): передайте файл с ограничениями через \`--settings\` и положите в него ${SANDBOX}.`];
   if (settings.hint) return [settings.hint];
   const box = settings.value.sandbox;
   const notes = settings.path ? pending(repo, settings.path) : '';
-  if (!isObject(box)) return [`${settings.label[0].toUpperCase()}${settings.label.slice(1)} has no \`sandbox\` settings. Add ${SANDBOX}.${notes}`];
+  if (!isObject(box)) return [`${settings.label}: нет настроек \`sandbox\`. Добавьте ${SANDBOX}.${notes}`];
   const problems = [];
-  if (box.enabled !== true) problems.push('Set `"enabled": true` under `sandbox`: the sandbox is off unless a settings file turns it on.');
-  if (box.failIfUnavailable !== true) problems.push('Set `"failIfUnavailable": true`: without it, a run whose sandbox can\'t start runs commands unsandboxed.');
-  if (box.allowUnsandboxedCommands !== false) problems.push('Set `"allowUnsandboxedCommands": false`: without it, Claude can retry a command the sandbox blocked outside the sandbox.');
-  if (box.autoAllowBashIfSandboxed !== false) problems.push('Set `"autoAllowBashIfSandboxed": false`: without it, sandboxed commands run without your allow rules or permission mode deciding, and only deny rules can stop one.');
+  if (box.enabled !== true) problems.push('Задайте `"enabled": true` в `sandbox`: песочница выключена, пока файл настроек её не включит.');
+  if (box.failIfUnavailable !== true) problems.push('Задайте `"failIfUnavailable": true`: без него запуск, у которого песочница не стартовала, выполняет команды без песочницы.');
+  if (box.allowUnsandboxedCommands !== false) problems.push('Задайте `"allowUnsandboxedCommands": false`: без него Claude может повторить заблокированную песочницей команду вне песочницы.');
+  if (box.autoAllowBashIfSandboxed !== false) problems.push('Задайте `"autoAllowBashIfSandboxed": false`: без него команды в песочнице выполняются, не спрашивая ваши правила allow и режим разрешений, и остановить их могут только правила deny.');
   if (!problems.length) return [];
-  return [`In ${settings.label}: ${problems.join(' ')}${notes}`];
+  return [`${settings.label}: ${problems.join(' ')}${notes}`];
 }
 
 export function strictSandbox(script = SCRIPT) {
   return {
-    text: 'the settings file turns the sandbox on in strict mode without auto-allow, and makes the run refuse to start without it',
+    text: 'файл настроек включает песочницу (sandbox) в строгом режиме без авторазрешения и заставляет запуск отказаться стартовать без неё',
     check(repo) {
       const a = analysis(repo, script);
       const none = noCall(repo, a, script);
@@ -500,52 +500,52 @@ function savedResult(repo, path) {
 
 // The hint for a saved run that isn't a real run's result, or null.
 function resultHint(saved, path, again) {
-  if (saved.text) return `${code(path)} isn't JSON. Save only what \`claude -p --output-format json\` prints to its standard output there. ${again}`;
-  if (saved.noResult) return `${code(path)} holds no result: the run didn't finish. ${again}`;
-  if (saved.value?.type !== 'result') return `${code(path)} isn't the result of a \`claude -p\` run with \`--output-format json\`. ${again}`;
-  if (saved.value.session_id === STUB_SESSION) return `${code(path)} holds the check's stand-in reply, not a real run: your script saved it there while the check ran it. Save the JSON only where the script's second argument says. ${again}`;
+  if (saved.text) return `${code(path)} — не JSON. Сохраняйте туда только то, что \`claude -p --output-format json\` печатает в стандартный вывод. ${again}`;
+  if (saved.noResult) return `В ${code(path)} нет результата: запуск не завершился. ${again}`;
+  if (saved.value?.type !== 'result') return `${code(path)} — не результат запуска \`claude -p\` с \`--output-format json\`. ${again}`;
+  if (saved.value.session_id === STUB_SESSION) return `В ${code(path)} лежит подставной ответ проверки, а не настоящий запуск: ваш скрипт сохранил его туда, пока проверка его запускала. Сохраняйте JSON только по пути из второго аргумента скрипта. ${again}`;
   return null;
 }
 
 export function sliceRun(record = SLICE, script = SCRIPT) {
-  const again = 'Then run the slice again.';
+  const again = 'Затем запустите срез снова.';
   return {
-    text: `${code(record)} holds a slice run whose cost is under your spend limit`,
+    text: `${code(record)} содержит запуск среза, стоимость которого ниже вашего лимита расходов`,
     local: true,
     check(repo) {
       const saved = savedResult(repo, record);
-      if (saved.missing) return `There is no ${code(record)} yet: run your script on a slice of the task, as the lesson's Worked example does: \`${script} "<a small part of the task>" ${record}\`.`;
+      if (saved.missing) return `Файла ${code(record)} ещё нет: запустите свой скрипт на срезе задачи, как в разделе «Разбор на примере» урока: \`${script} "<небольшая часть задачи>" ${record}\`.`;
       const wrong = resultHint(saved, record, again);
       if (wrong) return wrong;
       const run = saved.value;
-      if (run.subtype === 'error_max_budget_usd') return `The slice stopped at your spend limit (\`error_max_budget_usd\`), so the limit is below what one slice costs. Raise \`--max-budget-usd\` in ${code(script)} and commit it. ${again}`;
-      if (run.subtype === 'error_max_turns') return `The slice stopped at your turn limit (\`error_max_turns\`) before it finished. Raise \`--max-turns\` in ${code(script)}, or give it a smaller slice. ${again}`;
-      if (run.subtype !== 'success') return `The slice ended with ${code(String(run.subtype))}, not \`success\`, so it doesn't show what a whole slice costs. ${again}`;
-      if (run.is_error === true) return `The slice run failed${typeof run.result === 'string' && run.result.trim() ? `: "${quoted(run.result)}"` : ''}. Fix what it says. ${again}`;
-      if (typeof run.total_cost_usd !== 'number' || !Number.isFinite(run.total_cost_usd) || run.total_cost_usd < 0) return `The run in ${code(record)} has no cost estimate in \`total_cost_usd\`, which is what the slice is for. Save the JSON \`claude -p\` prints unchanged. ${again}`;
-      if (!Number.isInteger(run.num_turns)) return `The run in ${code(record)} has no turn count in \`num_turns\`, so it isn't the JSON \`claude -p\` saves. ${again}`;
+      if (run.subtype === 'error_max_budget_usd') return `Срез остановился на вашем лимите расходов (\`error_max_budget_usd\`), значит, лимит ниже стоимости одного среза. Поднимите \`--max-budget-usd\` в ${code(script)} и закоммитьте. ${again}`;
+      if (run.subtype === 'error_max_turns') return `Срез остановился на вашем лимите ходов (\`error_max_turns\`), не закончив. Поднимите \`--max-turns\` в ${code(script)} или дайте срез поменьше. ${again}`;
+      if (run.subtype !== 'success') return `Срез завершился с ${code(String(run.subtype))}, а не \`success\`, поэтому не показывает стоимость целого среза. ${again}`;
+      if (run.is_error === true) return `Запуск среза завершился сбоем${typeof run.result === 'string' && run.result.trim() ? `: «${quoted(run.result)}»` : ''}. Исправьте то, о чём там сказано. ${again}`;
+      if (typeof run.total_cost_usd !== 'number' || !Number.isFinite(run.total_cost_usd) || run.total_cost_usd < 0) return `В запуске в ${code(record)} нет оценки стоимости в \`total_cost_usd\`, а срез нужен именно для неё. Сохраните JSON, который печатает \`claude -p\`, без изменений. ${again}`;
+      if (!Number.isInteger(run.num_turns)) return `В запуске в ${code(record)} нет числа ходов в \`num_turns\`, значит, это не тот JSON, который сохраняет \`claude -p\`. ${again}`;
       const budget = budgetOf(analysis(repo, script));
-      if (budget === null) return `The check can't read a spend limit from ${code(script)} (see the second item), so it can't compare the slice's cost with it.`;
-      if (run.total_cost_usd >= budget) return `The slice cost an estimated $${run.total_cost_usd} (\`total_cost_usd\`), and your spend limit, \`--max-budget-usd ${budget}\`, isn't above it. Set the limit above what the slice cost, scaled to the whole task, and commit ${code(script)}.`;
+      if (budget === null) return `Проверка не может прочитать лимит расходов из ${code(script)} (см. второй пункт), поэтому не может сравнить с ним стоимость среза.`;
+      if (run.total_cost_usd >= budget) return `Срез стоил примерно $${run.total_cost_usd} (\`total_cost_usd\`), а ваш лимит расходов \`--max-budget-usd ${budget}\` не выше. Поставьте лимит выше стоимости среза, пересчитанной на всю задачу, и закоммитьте ${code(script)}.`;
       return true;
     },
   };
 }
 
 export function cappedRun(record = CAPPED) {
-  const again = 'Then run the lesson\'s step that stops a run at a limit again.';
+  const again = 'Затем снова выполните шаг урока, на котором запуск останавливается на лимите.';
   return {
-    text: `${code(record)} holds a run a limit stopped`,
+    text: `${code(record)} содержит запуск, остановленный лимитом`,
     local: true,
     check(repo) {
       const saved = savedResult(repo, record);
-      if (saved.missing) return `There is no ${code(record)} yet: run the lesson's step that gives a run a limit too small to finish, which saves its JSON there.`;
+      if (saved.missing) return `Файла ${code(record)} ещё нет: выполните шаг урока, где запуску даётся слишком маленький для завершения лимит; он сохранит туда JSON.`;
       const wrong = resultHint(saved, record, again);
       if (wrong) return wrong;
       const { subtype } = saved.value;
       if (LIMITS.has(subtype)) return true;
-      if (subtype === 'success') return `The run in ${code(record)} finished (\`success\`), so no limit stopped it. Give it a limit too small for the task, such as \`--max-budget-usd 0.01\`, as the lesson's step 4 does. ${again}`;
-      return `The run in ${code(record)} ended with ${code(String(subtype))}, not at a limit (\`error_max_turns\` or \`error_max_budget_usd\`). ${again}`;
+      if (subtype === 'success') return `Запуск в ${code(record)} завершился (\`success\`), значит, никакой лимит его не остановил. Дайте ему слишком маленький для задачи лимит, например \`--max-budget-usd 0.01\`, как в шаге 4 урока. ${again}`;
+      return `Запуск в ${code(record)} завершился с ${code(String(subtype))}, а не на лимите (\`error_max_turns\` или \`error_max_budget_usd\`). ${again}`;
     },
   };
 }

@@ -3,7 +3,7 @@
 // keeps personal settings in the uncommitted .claude/settings.local.json, and
 // turns the sandbox on. That a sandboxed write outside the project fails shows
 // only in a session, so the lesson self-checks it.
-export const title = 'Permissions, settings scopes and the sandbox';
+export const title = 'Разрешения, уровни настроек и песочница';
 
 const SHARED = '.claude/settings.json';
 const LOCAL = '.claude/settings.local.json';
@@ -39,38 +39,38 @@ const READ_ENV_ANY = /^Read\((\.\/|\/|\*\*\/)?\.env\.\*\)$/;
 
 export const items = [
   {
-    text: 'the committed `.claude/settings.json` denies reading `.env` files and allows a narrow test command',
+    text: 'закоммиченный `.claude/settings.json` запрещает читать файлы `.env` и разрешает одну узкую команду запуска тестов',
     check(repo) {
       const text = committed(repo, SHARED);
-      if (text === null) return repo.exists(SHARED) ? `${SHARED} is not committed. Run \`git add ${SHARED}\` and commit it: team rules belong in the shared file.` : `There is no ${SHARED}. Save the partial file from the lesson's Your turn there.`;
+      if (text === null) return repo.exists(SHARED) ? `${SHARED} не закоммичен. Выполните \`git add ${SHARED}\` и закоммитьте его: правила команды хранятся в общем файле.` : `Файла ${SHARED} нет. Сохраните заготовку из раздела «Ваша очередь» урока.`;
       const { value, error } = parse(text);
-      if (error) return `The committed ${SHARED} is not valid JSON: ${error}`;
+      if (error) return `Закоммиченный ${SHARED} — не корректный JSON: ${error}`;
       const allow = value?.permissions?.allow ?? [];
       const deny = value?.permissions?.deny ?? [];
       const todo = [...allow, ...deny].filter((r) => /TODO/.test(r));
-      if (todo.length) return `Replace each TODO with a rule: ${todo.join('; ')}.`;
-      if (!deny.some((r) => READ_ENV.test(r))) return 'Add `Read(./.env)` to `permissions.deny`.';
-      if (!deny.some((r) => READ_ENV_ANY.test(r))) return 'Add `Read(./.env.*)` to `permissions.deny`, for .env.local and the other .env.* files.';
+      if (todo.length) return `Замените каждый TODO правилом: ${todo.join('; ')}.`;
+      if (!deny.some((r) => READ_ENV.test(r))) return 'Добавьте `Read(./.env)` в `permissions.deny`.';
+      if (!deny.some((r) => READ_ENV_ANY.test(r))) return 'Добавьте `Read(./.env.*)` в `permissions.deny` — для .env.local и других файлов .env.*.';
       const wide = allow.filter(broad);
-      if (wide.length) return `${wide.join(', ')} lets every command or every use of a tool through. Allow one command, such as \`Bash(npm test)\`.`;
-      if (!allow.some((r) => /^Bash\(.+\)$/.test(r))) return 'Add an allow rule for the command that runs your tests, such as `Bash(npm test)`.';
+      if (wide.length) return `${wide.join(', ')} пропускает любую команду или любое использование инструмента. Разрешите одну команду, например \`Bash(npm test)\`.`;
+      if (!allow.some((r) => /^Bash\(.+\)$/.test(r))) return 'Добавьте разрешающее правило для команды, которая запускает ваши тесты, например `Bash(npm test)`.';
       return true;
     },
   },
   {
-    text: 'the sandbox is on, and `.claude/settings.local.json` stays out of git',
+    text: 'песочница включена, а `.claude/settings.local.json` не попадает в git',
     // `/sandbox` saves to the uncommitted local file, which never reaches CI.
     local: true,
     check(repo) {
-      if (repo.git('ls-files', '--', LOCAL)) return `${LOCAL} is committed, but it holds your own settings. Run \`git rm --cached ${LOCAL}\`, commit, and add it to \`.gitignore\`.`;
+      if (repo.git('ls-files', '--', LOCAL)) return `${LOCAL} закоммичен, но в нём ваши личные настройки. Выполните \`git rm --cached ${LOCAL}\`, закоммитьте и добавьте файл в \`.gitignore\`.`;
       for (const path of [LOCAL, SHARED]) {
         const text = repo.read(path);
         if (text === null) continue;
         const { value, error } = parse(text);
-        if (error) return `${path} is not valid JSON: ${error}`;
+        if (error) return `${path} — не корректный JSON: ${error}`;
         if (value?.sandbox?.enabled === true) return true;
       }
-      return 'The sandbox is off. Run `/sandbox` in a session and choose the auto-allow mode, which saves `"sandbox": {"enabled": true}` to .claude/settings.local.json.';
+      return 'Песочница выключена. Выполните `/sandbox` в сессии и выберите режим auto-allow: он сохранит `"sandbox": {"enabled": true}` в .claude/settings.local.json.';
     },
   },
 ];

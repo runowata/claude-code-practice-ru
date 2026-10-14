@@ -14,7 +14,7 @@ import { boundedWorkflow, chosenWorkflow } from './a-5.mjs';
 import { marketplaceItem, settingsItem } from './a-6.mjs';
 import { testsPass, nothingUncommitted } from './b-3.mjs';
 
-export const title = 'Advanced capstone';
+export const title = 'Итоговый проект продвинутого уровня';
 
 export const SNAPSHOT = '.practice/a-capstone-worktrees.txt';
 export const RUN = '.practice/a-capstone-run.json';
@@ -25,17 +25,17 @@ export const REVIEW = '.github/workflows/claude-review.yml';
 export const CI = {
   triggers: ['pull_request'],
   file: REVIEW,
-  guide: 'part 5 of `capstone/advanced-brief.md`',
-  secret: 'the secret you saved with `gh secret set`',
-  noToken: 'the action authenticates as the Claude GitHub App, which the capstone doesn\'t set up',
+  guide: 'части 5 файла `capstone/advanced-brief.md`',
+  secret: 'секрет, который вы сохранили командой `gh secret set`',
+  noToken: 'action аутентифицируется как приложение Claude GitHub App, которое в итоговом проекте не устанавливается',
 };
 // Where the brief describes the review script and the team's plugin, for the
 // hints of the lessons' items, which name the lessons' own sections.
-const SCRIPT_GUIDE = 'part 2 of `capstone/advanced-brief.md`';
-const PLUGIN_GUIDE = 'part 3 of `capstone/advanced-brief.md`';
+const SCRIPT_GUIDE = 'части 2 файла `capstone/advanced-brief.md`';
+const PLUGIN_GUIDE = 'части 3 файла `capstone/advanced-brief.md`';
 const PLUGIN = {
-  marketplace: `Put a marketplace with one plugin of yours in \`team-marketplace/\`, as ${PLUGIN_GUIDE} describes`,
-  settings: `as ${PLUGIN_GUIDE} describes`,
+  marketplace: `Положите marketplace с одним вашим плагином в \`team-marketplace/\`, как описано в ${PLUGIN_GUIDE}`,
+  settings: `как описано в ${PLUGIN_GUIDE}`,
 };
 
 // A Claude API key or OAuth token written out, as lesson 5's check spots one
@@ -70,7 +70,7 @@ function headCommit(repo) {
 }
 
 export const noCommittedKey = {
-  text: 'no Claude API key or token is committed, at `HEAD` or in the commit the workflow item reads',
+  text: 'ни ключ Claude API, ни токен не закоммичены ни в `HEAD`, ни в коммите, который читает пункт про workflow',
   check(repo) {
     const head = headCommit(repo);
     if (!head) return true;
@@ -78,10 +78,10 @@ export const noCommittedKey = {
     for (const commit of [head, read].filter((c, i, all) => c && all.indexOf(c) === i)) {
       const found = keysAt(repo, commit);
       if (!found.length) continue;
-      const places = found.slice(0, 3).map((f) => `line ${f.line} of \`${f.path}\``);
-      const more = found.length > 3 ? `, and ${found.length - 3} more` : '';
-      const where = commit === head ? 'At `HEAD`' : `In commit ${short(commit)}, where the check reads your workflow`;
-      return `${where}, ${places.join(', ')}${more} ${found.length > 1 ? 'hold' : 'holds'} what looks like a Claude API key or token. Treat it as leaked, because removing it from the file doesn't take it out of your history: delete an API key in the Claude Console now (for a \`claude setup-token\` token, read the warning on the capstone page), and keep the credential only in a repository secret.`;
+      const places = found.slice(0, 3).map((f) => `строка ${f.line} файла \`${f.path}\``);
+      const more = found.length > 3 ? `, и ещё ${found.length - 3}` : '';
+      const where = commit === head ? 'В `HEAD`' : `В коммите ${short(commit)}, где проверка читает ваш workflow`;
+      return `${where}: ${places.join(', ')}${more} — похоже на ключ или токен Claude API. Считайте его утёкшим, ведь удаление из файла не убирает его из истории: удалите ключ API в Claude Console прямо сейчас (для токена от \`claude setup-token\` прочитайте предупреждение на странице итогового проекта) и храните учётные данные только в секрете репозитория.`;
     }
     return true;
   },

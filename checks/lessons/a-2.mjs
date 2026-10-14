@@ -4,14 +4,14 @@
 // session started with a SubagentStart hook that logs each subagent's id and
 // type. Naming the pattern for a job of their own is self-checked.
 
-export const title = 'Choose an orchestration pattern';
+export const title = 'Выберите схему оркестрации';
 
 const CHOICES = '.practice/a-2-choices.md';
 const LOG = '.practice/a-2-agents.txt';
 const HOOK = '.practice/a-2-hook.json';
 const HOOKED = `\`claude --settings ${HOOK}\``;
-const FORMAT = '`<job number>: <pattern> because <reason>`';
-const NAMES = '`main conversation`, `subagents`, `workflow` or `agent team`';
+const FORMAT = '`<номер задания>: <схема> потому что <причина>`';
+const NAMES = '`main conversation`, `subagents`, `workflow` или `agent team`';
 
 // What the text after a job number may start with, once an article goes.
 const PATTERNS = [
@@ -20,15 +20,15 @@ const PATTERNS = [
   ['main conversation', /^(?:main\s+(?:conversation|session)|(?:single|one)\s+(?:conversation|session))\b/i],
   ['agent team', /^agent[\s-]+teams?\b/i],
 ];
-const LABEL = { 'main conversation': 'the main conversation', subagents: 'subagents', workflow: 'a workflow', 'agent team': 'an agent team' };
+const LABEL = { 'main conversation': 'основной разговор (main conversation)', subagents: 'субагенты (subagents)', workflow: 'workflow', 'agent team': 'agent team' };
 
 // The lesson's chart: its questions in order, and the answers that lead to
 // each pattern. Where a wrong pick leaves the right path is the question that
 // settles the job.
 const QUESTIONS = [
-  'Can one conversation do it without filling up?',
-  'Must the workers talk to each other?',
-  'Does it need many agents, cross-checked findings or a rerun?',
+  'Справится ли один разговор, не переполнившись?',
+  'Должны ли исполнители общаться друг с другом?',
+  'Нужны ли много агентов, перекрёстная проверка находок или повторный запуск?',
 ];
 const PATH = {
   'main conversation': [true],
@@ -41,28 +41,28 @@ const PATH = {
 // the way to the pattern that fits.
 const JOBS = {
   1: { pattern: 'subagents', why: [
-    'No: reading the files in your conversation would crowd it, and you only need the findings.',
-    'No: each reviewer checks its own file and reports what it found.',
-    'No: three files, checked once, with no step that verifies the findings.',
+    'Нет: чтение файлов в вашем разговоре его переполнит, а нужны только находки.',
+    'Нет: каждый рецензент проверяет свой файл и сообщает, что нашёл.',
+    'Нет: три файла, одна проверка, без шага, который перепроверяет находки.',
   ] },
   2: { pattern: 'workflow', why: [
-    'No: it checks every source file.',
-    'No: each finding is verified against the code, not argued out between workers.',
-    'Yes: it checks every source file, verifies each finding and reruns before every release, so a script should hold the plan.',
+    'Нет: проверяется каждый исходный файл.',
+    'Нет: каждая находка сверяется с кодом, а не обсуждается между исполнителями.',
+    'Да: проверяется каждый исходный файл, каждая находка перепроверяется, и всё запускается заново перед каждым релизом, поэтому план должен храниться в скрипте.',
   ] },
   3: { pattern: 'main conversation', why: [
-    'Yes: fixing a typo is a quick, targeted change, and each step past one conversation costs more.',
+    'Да: исправить опечатку — быстрая точечная правка, а каждый шаг за пределы одного разговора стоит дороже.',
   ] },
   4: { pattern: 'agent team', why: [
-    'No: three investigators work at the same time, each on a theory of its own.',
-    "Yes: the investigators message each other as they work to challenge each other's findings, and an agent team's teammates message each other directly.",
+    'Нет: три исследователя работают одновременно, каждый над своей версией.',
+    'Да: исследователи пишут друг другу по ходу работы, чтобы оспаривать находки друг друга, а участники agent team обмениваются сообщениями напрямую.',
   ] },
 };
 
 const SEPARATOR = '[:.)|\\-\\u2013\\u2014]';
 const JOB_LINE = new RegExp(`^(?:job\\s*#?\\s*([1-4])(?!\\d)\\s*${SEPARATOR}*|#?([1-4])(?!\\d)\\s*${SEPARATOR}+)\\s*(.*)$`, 'i');
 
-const and = (list) => (list.length > 1 ? `${list.slice(0, -1).join(', ')} and ${list.at(-1)}` : list[0]);
+const and = (list) => (list.length > 1 ? `${list.slice(0, -1).join(', ')} и ${list.at(-1)}` : list[0]);
 
 // The choice lines in the file, by job number. `1: subagents because ...`,
 // `Job 1 - Subagents`, `- **2:** dynamic workflow`, `3. main session`,
@@ -80,7 +80,7 @@ export function readChoices(text) {
     if (!match) continue;
     const rest = match[3].replace(/^["'([\s]+/, '').replace(/^(?:an?|the)\s+/i, '');
     const found = PATTERNS.find(([, pattern]) => pattern.test(rest));
-    const start = rest.replace(/\s+because\b.*$/i, '').split(/\s+/).filter(Boolean).slice(0, 4).join(' ');
+    const start = rest.replace(/\s+(?:because\b|потому что).*$/i, '').split(/\s+/).filter(Boolean).slice(0, 4).join(' ');
     jobs.get(Number(match[1] ?? match[2])).push({ pattern: found ? found[0] : null, start });
   }
   return jobs;
@@ -89,7 +89,7 @@ export function readChoices(text) {
 function wrongPick(n, chosen) {
   const { pattern, why } = JOBS[n];
   const at = PATH[chosen].findIndex((answer, i) => answer !== PATH[pattern][i]);
-  return `Job ${n} doesn't call for ${LABEL[chosen]}. ${QUESTIONS[at]} ${why[at]} It calls for ${LABEL[pattern]}.`;
+  return `Заданию ${n} не подходит схема: ${LABEL[chosen]}. ${QUESTIONS[at]} ${why[at]} Подходит: ${LABEL[pattern]}.`;
 }
 
 // Subagent starts in the hook's log, one per line: `agent_id<TAB>agent_type`.
@@ -109,23 +109,23 @@ export function startedAgents(text) {
 }
 
 export const fittingPatterns = {
-  text: `\`${CHOICES}\` picks the cheapest pattern that fits each job`,
+  text: `\`${CHOICES}\` выбирает для каждого задания самую дешёвую подходящую схему`,
   local: true,
   check(repo) {
     const text = repo.read(CHOICES);
-    if (text === null) return `There is no \`${CHOICES}\`. Save your choices there, one line per job in the form ${FORMAT}, where each pattern is ${NAMES}.`;
+    if (text === null) return `Нет файла \`${CHOICES}\`. Сохраните в нём свой выбор: одна строка на задание в виде ${FORMAT}, где схема — ${NAMES}.`;
     const jobs = readChoices(text);
-    if ([...jobs.values()].every((lines) => !lines.length)) return `\`${CHOICES}\` has no line that starts with a job number. Write one line per job in the form ${FORMAT}, where each pattern is ${NAMES}.`;
+    if ([...jobs.values()].every((lines) => !lines.length)) return `В \`${CHOICES}\` нет ни одной строки, которая начинается с номера задания. Напишите по строке на задание в виде ${FORMAT}, где схема — ${NAMES}.`;
     const missing = [...jobs].filter(([, lines]) => !lines.length).map(([n]) => n);
-    const problems = missing.length ? [`\`${CHOICES}\` has no line for job${missing.length > 1 ? 's' : ''} ${and(missing)}. Add one per job in the form ${FORMAT}.`] : [];
+    const problems = missing.length ? [`В \`${CHOICES}\` нет строки для ${missing.length > 1 ? 'заданий' : 'задания'} ${and(missing)}. Добавьте по строке на задание в виде ${FORMAT}.`] : [];
     for (const [n, lines] of jobs) {
       if (!lines.length) continue;
       const picked = [...new Set(lines.map((l) => l.pattern).filter(Boolean))];
       if (!picked.length) {
         const { start } = lines[0];
-        problems.push(start ? `Job ${n}'s line starts with "${start}", which isn't one of the four patterns. Right after the job number, write ${NAMES}.` : `Job ${n}'s line names no pattern. Right after the job number, write ${NAMES}.`);
+        problems.push(start ? `Строка задания ${n} начинается с «${start}», а это не одна из четырёх схем. Сразу после номера задания напишите ${NAMES}.` : `В строке задания ${n} не названа схема. Сразу после номера задания напишите ${NAMES}.`);
       } else if (picked.length > 1) {
-        problems.push(`Job ${n} has lines that pick different patterns: ${and(picked.map((p) => LABEL[p]))}. Keep one line per job.`);
+        problems.push(`У задания ${n} строки выбирают разные схемы: ${and(picked.map((p) => LABEL[p]))}. Оставьте одну строку на задание.`);
       } else if (picked[0] !== JOBS[n].pattern) {
         problems.push(wrongPick(n, picked[0]));
       }
@@ -135,21 +135,21 @@ export const fittingPatterns = {
 };
 
 export const parallelSubagents = {
-  text: `\`${LOG}\` shows at least two subagents starting for job 1`,
+  text: `\`${LOG}\` показывает запуск как минимум двух субагентов для задания 1`,
   local: true,
   check(repo) {
     const text = repo.read(LOG);
     if (text === null) {
       return repo.exists(HOOK)
-        ? `There is no \`${LOG}\`. Start the session with ${HOOKED}, then run job 1.`
-        : `There is no \`${LOG}\`. Save the hook file from the lesson's Your turn as \`${HOOK}\`, start the session with ${HOOKED}, then run job 1.`;
+        ? `Нет файла \`${LOG}\`. Запустите сессию с ${HOOKED}, затем выполните задание 1.`
+        : `Нет файла \`${LOG}\`. Сохраните файл хука из раздела «Ваша очередь» урока как \`${HOOK}\`, запустите сессию с ${HOOKED}, затем выполните задание 1.`;
     }
     const { ids, count } = startedAgents(text);
     if (count >= 2) return true;
-    if (count === 0) return `\`${LOG}\` is empty. The hook's command creates the file before \`jq\` runs, so check that \`jq --version\` works, then run job 1 again in a session started with ${HOOKED}.`;
+    if (count === 0) return `\`${LOG}\` пуст. Команда хука создаёт файл до запуска \`jq\`, поэтому проверьте, что \`jq --version\` работает, и снова выполните задание 1 в сессии, запущенной с ${HOOKED}.`;
     const [[id, times] = []] = ids;
-    const seen = times > 1 ? ` It shows one subagent, \`${id}\`, starting ${times} times: a subagent that Claude resumes logs its id again, so it counts once.` : ' It shows one subagent starting.';
-    return `\`${LOG}\` needs at least two subagents.${seen} In a session started with ${HOOKED}, ask for one subagent per file, in parallel.`;
+    const seen = times > 1 ? ` В нём один субагент, \`${id}\`, запущенный ${times} раз: возобновлённый Claude субагент снова пишет свой id, поэтому он считается один раз.` : ' В нём запуск одного субагента.';
+    return `В \`${LOG}\` нужны как минимум два субагента.${seen} В сессии, запущенной с ${HOOKED}, попросите по одному субагенту на файл, параллельно.`;
   },
 };
 

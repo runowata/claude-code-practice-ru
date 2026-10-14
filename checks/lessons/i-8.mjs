@@ -4,7 +4,7 @@
 // `claude plugin list --json` so the check can see the install.
 import { realpathSync } from 'node:fs';
 
-export const title = 'Install and manage plugins';
+export const title = 'Установите плагины и управляйте ими';
 
 const ANTHROPIC = ['claude-plugins-official', 'claude-community', 'claude-code-plugins'];
 const SAVE = '`claude plugin list --json > .practice/i-8-plugins.json`';
@@ -32,31 +32,31 @@ function projectPlugins(repo) {
 
 export const items = [
   {
-    text: 'the committed `.claude/settings.json` enables a plugin from one of Anthropic\'s marketplaces',
+    text: 'закоммиченный `.claude/settings.json` включает плагин из одного из marketplace Anthropic',
     check(repo) {
       const ids = projectPlugins(repo);
-      if (ids === null) return 'There is no committed .claude/settings.json that parses as JSON. Add the `enabledPlugins` entry from the lesson and commit it.';
-      return ids.length ? true : `Its \`enabledPlugins\` turns on no plugin from Anthropic's marketplaces. Add \`"claude-code-setup@claude-plugins-official": true\`: the part after @ is the marketplace's name, one of ${ANTHROPIC.join(', ')}.`;
+      if (ids === null) return 'Нет закоммиченного .claude/settings.json, который читается как JSON. Добавьте запись `enabledPlugins` из урока и закоммитьте.';
+      return ids.length ? true : `В \`enabledPlugins\` не включён ни один плагин из marketplace Anthropic. Добавьте \`"claude-code-setup@claude-plugins-official": true\`: часть после @ — имя marketplace, одно из ${ANTHROPIC.join(', ')}.`;
     },
   },
   {
-    text: '`.practice/i-8-plugins.json`, saved in this repository, shows that plugin installed at project scope and enabled',
+    text: '`.practice/i-8-plugins.json`, сохранённый в этом репозитории, показывает, что этот плагин установлен на уровне проекта и включён',
     local: true,
     check(repo) {
       const text = repo.read('.practice/i-8-plugins.json');
-      if (text === null) return `In the repository, run ${SAVE}.`;
+      if (text === null) return `В репозитории выполните ${SAVE}.`;
       let list;
       try {
         list = JSON.parse(text);
       } catch {
-        return `.practice/i-8-plugins.json isn't JSON. Run ${SAVE} again, from the repository's root.`;
+        return `.practice/i-8-plugins.json — не JSON. Выполните ${SAVE} снова, из корня репозитория.`;
       }
       const ids = projectPlugins(repo) ?? [];
       // The list holds project-scope installs for every project on the machine,
       // and projectEnabled reflects the settings of the folder it ran in, so an
       // install counts only when its projectPath is this repository.
       const ok = (Array.isArray(list) ? list : list?.installed ?? []).some((p) => ids.includes(p?.id) && p.scope === 'project' && p.enabled === true && p.projectEnabled === true && here(p.projectPath, repo.dir) !== false);
-      return ok ? true : `The saved list doesn't show ${ids[0] ?? 'the plugin'} installed at project scope for this repository. Run \`claude plugin install ${ids[0] ?? '<plugin>@<marketplace>'} --scope project\` in the repository, then ${SAVE}.`;
+      return ok ? true : `Сохранённый список не показывает, что ${ids[0] ?? 'плагин'} установлен на уровне проекта для этого репозитория. Выполните в репозитории \`claude plugin install ${ids[0] ?? '<plugin>@<marketplace>'} --scope project\`, затем ${SAVE}.`;
     },
   },
 ];

@@ -5,7 +5,7 @@
 import { frontmatter } from '../frontmatter.mjs';
 import { isTestFile, TEST_NAMES } from '../paths.mjs';
 
-export const title = 'Turn a repeated workflow into a skill';
+export const title = 'Превратите повторяющийся процесс в skill';
 
 const SKILL = '.claude/skills/tdd/SKILL.md';
 const SAVE_COMMIT = '`git rev-parse HEAD > .practice/i-1-commit.txt`';
@@ -19,55 +19,55 @@ function committedSkill(repo) {
 }
 
 function missing(repo) {
-  if (repo.exists(SKILL)) return `${SKILL} is not committed. Run \`git add ${SKILL}\` and commit it.`;
-  return `There is no ${SKILL}. Save the partial skill from the lesson's Your turn there, finish it, and commit it.`;
+  if (repo.exists(SKILL)) return `${SKILL} не закоммичен. Выполните \`git add ${SKILL}\` и закоммитьте его.`;
+  return `Файла ${SKILL} нет. Сохраните заготовку skill из раздела «Ваша очередь» урока, доработайте её и закоммитьте.`;
 }
 
 export const items = [
   {
-    text: '`.claude/skills/tdd/SKILL.md` is committed, with no TODO left',
+    text: '`.claude/skills/tdd/SKILL.md` закоммичен, и в нём не осталось TODO',
     check(repo) {
       const text = committedSkill(repo);
       if (text === null) return missing(repo);
       const todo = text.split(/\r?\n/).flatMap((line, i) => (/\bTODO\b/.test(line) ? [i + 1] : []));
       if (!todo.length) return true;
-      return `The committed skill still has TODO on line${todo.length > 1 ? 's' : ''} ${todo.join(', ')}. Write the description and the Green and Refactor steps, then commit the file again.`;
+      return `В закоммиченном skill ещё есть TODO в ${todo.length > 1 ? 'строках' : 'строке'} ${todo.join(', ')}. Напишите описание и шаги Green и Refactor, затем закоммитьте файл снова.`;
     },
   },
   {
-    text: 'the tdd skill can run as `/tdd` and load on its own: a description, and no `disable-model-invocation: true`',
+    text: 'skill tdd запускается как `/tdd` и подгружается сам: есть описание, нет `disable-model-invocation: true`',
     check(repo) {
       const text = committedSkill(repo);
       if (text === null) return missing(repo);
       const fm = frontmatter(text);
-      if (!fm) return `${SKILL} must start with frontmatter between two --- lines.`;
+      if (!fm) return `${SKILL} должен начинаться с frontmatter между двумя строками ---.`;
       const { fields } = fm;
-      if (String(fields['disable-model-invocation']) === 'true') return 'Delete the `disable-model-invocation: true` line and commit again: it stops Claude from loading the skill on its own.';
-      if (String(fields['user-invocable']) === 'false') return 'Delete the `user-invocable: false` line and commit again: it stops `/tdd` from running the skill.';
-      if (typeof fields.name === 'string' && fields.name && fields.name !== 'tdd') return `The frontmatter name is "${fields.name}", so the skill runs as /${fields.name}, not /tdd. Set \`name: tdd\` or delete the line.`;
+      if (String(fields['disable-model-invocation']) === 'true') return 'Удалите строку `disable-model-invocation: true` и закоммитьте снова: из-за неё Claude не подгружает skill сам.';
+      if (String(fields['user-invocable']) === 'false') return 'Удалите строку `user-invocable: false` и закоммитьте снова: из-за неё `/tdd` не запускает skill.';
+      if (typeof fields.name === 'string' && fields.name && fields.name !== 'tdd') return `В frontmatter указано имя «${fields.name}», поэтому skill запускается как /${fields.name}, а не /tdd. Укажите \`name: tdd\` или удалите строку.`;
       const description = typeof fields.description === 'string' ? fields.description.trim() : '';
       const words = description.split(/\s+/).filter((w) => w && w !== 'TODO').length;
-      if (words < 8) return 'Write a description of a sentence or two that says what the skill does and when Claude should use it. Claude reads only the description to decide when to load the skill.';
+      if (words < 8) return 'Напишите описание из одного-двух предложений: что делает skill и когда Claude должен им пользоваться. Claude читает только описание, чтобы решить, когда подгружать skill.';
       return true;
     },
   },
   {
-    text: 'the commit in `.practice/i-1-commit.txt` changes a test and the code it tests',
+    text: 'коммит из `.practice/i-1-commit.txt` меняет тест и проверяемый им код',
     local: true,
     check(repo) {
       const saved = repo.read('.practice/i-1-commit.txt');
-      if (saved === null || !saved.trim()) return `After the /tdd run commits its work, run ${SAVE_COMMIT}.`;
+      if (saved === null || !saved.trim()) return `Когда запуск /tdd закоммитит свою работу, выполните ${SAVE_COMMIT}.`;
       const sha = saved.trim().split(/\s+/)[0];
       let files;
       try {
         files = repo.git('show', '--name-only', '--format=', sha).split('\n').filter(Boolean);
       } catch {
-        return `\`.practice/i-1-commit.txt\` names ${sha}, which is not a commit in this repository.`;
+        return `В \`.practice/i-1-commit.txt\` указан ${sha}, но такого коммита в этом репозитории нет.`;
       }
       const tests = files.filter(isTestFile);
       const code = files.filter((f) => !isTestFile(f) && !/\.md$/i.test(f) && !f.startsWith('.claude/'));
       if (tests.length && code.length) return true;
-      return `That commit should hold a test and the code it tests, together; it changes ${files.join(', ') || 'nothing'}. Tests are ${TEST_NAMES}. Run /tdd on a small feature, let it commit, then run ${SAVE_COMMIT} again.`;
+      return `В этом коммите должны быть вместе тест и проверяемый им код; сейчас он меняет: ${files.join(', ') || 'ничего'}. Тесты — это ${TEST_NAMES}. Запустите /tdd на небольшой функции, дайте ему закоммитить, затем снова выполните ${SAVE_COMMIT}.`;
     },
   },
 ];

@@ -14,18 +14,18 @@ import { parseClaudeArgs, ruleList } from '../claude-args.mjs';
 import { committedMode, missingJq } from '../hooks.mjs';
 import { notRun, runStubbed, stderrTail, STUB_SESSION, TIME_LIMIT } from '../stub-claude.mjs';
 
-export const title = 'Script Claude Code with `claude -p`';
+export const title = 'Скрипт для Claude Code с `claude -p`';
 
 export const SCRIPT = 'scripts/review-staged.sh';
 export const RESULT = '.practice/a-4-result.json';
 export const CAP_MAX = 10;
 
-const JQ = 'The script needs `jq`, which isn\'t installed. Install it and run the check again.';
+const JQ = 'Скрипту нужен `jq`, а он не установлен. Установите его и запустите проверку снова.';
 const OUT = 'review.json';
 const READ_ONLY = /^(Read|Grep|Glob)(\(.*\))?$/s;
 const TOOL_NAME = /^(?:[A-Z]\w*|mcp__\S+|\*)(\(.*\))?$/s;
 
-const and = (list) => (list.length > 1 ? `${list.slice(0, -1).join(', ')} and ${list.at(-1)}` : list[0]);
+const and = (list) => (list.length > 1 ? `${list.slice(0, -1).join(', ')} и ${list.at(-1)}` : list[0]);
 const code = (text) => `\`${text}\``;
 const quoted = (text) => (text.length > 120 ? `${text.slice(0, 120)}...` : text).replace(/\s+/g, ' ').trim();
 
@@ -93,21 +93,21 @@ function pending(repo, script) {
     repo.git('diff', '--quiet', 'HEAD', '--', script);
     return '';
   } catch {
-    return ` Your copy of ${code(script)} has changes that aren't committed: if they fix this, commit them.`;
+    return ` В вашей копии ${code(script)} есть незакоммиченные изменения: если они это исправляют, закоммитьте их.`;
   }
 }
 
 // A run's exit code, or the signal that ended it.
 const exitOf = (run) => run.status ?? run.signal;
 
-const timedOut = `was still running after ${TIME_LIMIT / 1000} seconds, so the check stopped it`;
+const timedOut = `всё ещё работал через ${TIME_LIMIT / 1000} с, поэтому проверка его остановила`;
 
 // How a run ended, for a hint.
 function ended(run) {
-  if (run.timedOut) return `It ${timedOut}.`;
+  if (run.timedOut) return `Скрипт ${timedOut}.`;
   if (missingJq(run)) return JQ;
   const tail = stderrTail(run);
-  return `It exited with ${exitOf(run)}${tail ? `: ${tail}` : '.'}`;
+  return `Он завершился с кодом ${exitOf(run)}${tail ? `: ${tail}` : '.'}`;
 }
 
 // The turn cap the script passes, or CAP_MAX when the check can't tell.
@@ -126,27 +126,27 @@ export function callHints(argv) {
   // An option Claude Code doesn't know, written like one the call needs.
   const spelling = (flag) => {
     const typo = args.unknown.find((u) => squash(u) === squash(flag));
-    return typo ? ` Claude Code doesn't know ${code(typo.split('=')[0])}, so it stops with an error before the run starts: write ${code(flag)}.` : '';
+    return typo ? ` Claude Code не знает ${code(typo.split('=')[0])}, поэтому останавливается с ошибкой до начала запуска: напишите ${code(flag)}.` : '';
   };
-  const example = 'as in `claude -p "<prompt>" --output-format json ...`';
+  const example = 'как в `claude -p "<prompt>" --output-format json ...`';
   if (!args.promptFirst) {
     problems.push(args.next === undefined
-      ? `Nothing follows \`-p\`. Write the prompt right after it, ${example}.`
-      : `${code(args.next)} comes right after \`-p\`. Write the prompt right after \`-p\`, ${example}.`);
+      ? `После \`-p\` ничего нет. Напишите промпт сразу после него, ${example}.`
+      : `Сразу после \`-p\` идёт ${code(args.next)}. Напишите промпт сразу после \`-p\`, ${example}.`);
   } else if (!args.prompt.trim()) {
-    problems.push('The prompt after `-p` is empty. Write what Claude should do with the diff there.');
+    problems.push('Промпт после `-p` пуст. Напишите там, что Claude должен сделать с диффом.');
   }
 
   const { outputFormat, permissionMode, allowedTools, maxTurns, dangerouslySkipPermissions } = args.flags;
-  if (outputFormat === undefined) problems.push(`It doesn't ask for JSON: add \`--output-format json\`.${spelling('--output-format')}`);
-  else if (outputFormat === null) problems.push('`--output-format` has no format after it: write `--output-format json`.');
-  else if (outputFormat !== 'json') problems.push(`It asks for \`--output-format ${outputFormat}\`: use \`json\`, so the script can save the result and read it.`);
+  if (outputFormat === undefined) problems.push(`Он не просит JSON: добавьте \`--output-format json\`.${spelling('--output-format')}`);
+  else if (outputFormat === null) problems.push('После `--output-format` нет формата: напишите `--output-format json`.');
+  else if (outputFormat !== 'json') problems.push(`Он просит \`--output-format ${outputFormat}\`: используйте \`json\`, чтобы скрипт мог сохранить результат и прочитать его.`);
 
-  if (permissionMode === undefined) problems.push(`It sets no permission mode: add \`--permission-mode dontAsk\`, so every call that would ask for permission is denied.${spelling('--permission-mode')}`);
-  else if (permissionMode === null) problems.push('`--permission-mode` has no mode after it: write `--permission-mode dontAsk`.');
-  else if (permissionMode.toLowerCase() === 'dontask' && permissionMode !== 'dontAsk') problems.push(`Write \`dontAsk\` as Claude Code spells it, not ${code(permissionMode)}.`);
-  else if (permissionMode !== 'dontAsk') problems.push(`It runs in ${code(permissionMode)} mode: use \`--permission-mode dontAsk\`, so every call that would ask for permission is denied.`);
-  if (dangerouslySkipPermissions) problems.push('Drop `--dangerously-skip-permissions`: it is the same as `--permission-mode bypassPermissions`.');
+  if (permissionMode === undefined) problems.push(`Режим разрешений не задан: добавьте \`--permission-mode dontAsk\`, чтобы каждый вызов, требующий разрешения, отклонялся.${spelling('--permission-mode')}`);
+  else if (permissionMode === null) problems.push('После `--permission-mode` нет режима: напишите `--permission-mode dontAsk`.');
+  else if (permissionMode.toLowerCase() === 'dontask' && permissionMode !== 'dontAsk') problems.push(`Пишите \`dontAsk\` так, как его пишет Claude Code, а не ${code(permissionMode)}.`);
+  else if (permissionMode !== 'dontAsk') problems.push(`Он работает в режиме ${code(permissionMode)}: используйте \`--permission-mode dontAsk\`, чтобы каждый вызов, требующий разрешения, отклонялся.`);
+  if (dangerouslySkipPermissions) problems.push('Уберите `--dangerously-skip-permissions`: это то же самое, что `--permission-mode bypassPermissions`.');
 
   // A value with a word that can't be a tool name, such as a prompt written
   // after the list, is reported by that word alone.
@@ -154,52 +154,52 @@ export function callHints(argv) {
   const words = values.flatMap((v) => ruleList([v]).filter((e) => !TOOL_NAME.test(e)));
   const entries = ruleList(values.filter((v) => ruleList([v]).every((e) => TOOL_NAME.test(e))));
   const others = [...new Set(entries.filter((e) => !READ_ONLY.test(e)))];
-  if (allowedTools === undefined) problems.push(`It pre-approves no tools: add \`--allowedTools "Read,Grep,Glob"\`.${spelling('--allowedTools')}`);
-  else if (!ruleList(values).length) problems.push('`--allowedTools` lists no tool: write `--allowedTools "Read,Grep,Glob"`.');
+  if (allowedTools === undefined) problems.push(`Ни один инструмент не одобрен заранее: добавьте \`--allowedTools "Read,Grep,Glob"\`.${spelling('--allowedTools')}`);
+  else if (!ruleList(values).length) problems.push('В `--allowedTools` нет ни одного инструмента: напишите `--allowedTools "Read,Grep,Glob"`.');
   if (words.length) {
     const [word] = words;
     problems.push(/^(read|grep|glob)$/i.test(word)
-      ? `Write ${code(word[0].toUpperCase() + word.slice(1).toLowerCase())} as Claude Code spells the tool, not ${code(word)}.`
-      : `${code(word)} isn't a read-only tool: list only \`Read\`, \`Grep\` and \`Glob\` after \`--allowedTools\`, and write the prompt right after \`-p\`.`);
+      ? `Пишите ${code(word[0].toUpperCase() + word.slice(1).toLowerCase())} так, как Claude Code пишет имя инструмента, а не ${code(word)}.`
+      : `${code(word)} — не инструмент только для чтения: после \`--allowedTools\` перечислите только \`Read\`, \`Grep\` и \`Glob\`, а промпт напишите сразу после \`-p\`.`);
   }
   if (others.length) {
     const shown = others.slice(0, 3).map(code);
-    problems.push(`\`--allowedTools\` lists ${and(shown)}${others.length > 3 ? ` and ${others.length - 3} more` : ''}, ${others.length > 1 ? 'which are' : 'which is'} not \`Read\`, \`Grep\` or \`Glob\`. Claude gets the diff on stdin, so list only those three.`);
+    problems.push(`В \`--allowedTools\` указано: ${and(shown)}${others.length > 3 ? ` и ещё ${others.length - 3}` : ''} — ${others.length > 1 ? 'это не' : 'это не'} \`Read\`, \`Grep\` или \`Glob\`. Claude получает дифф через stdin, поэтому перечислите только эти три.`);
   }
 
-  if (maxTurns === undefined) problems.push(`It sets no turn cap: add \`--max-turns\` with a number from 1 to ${CAP_MAX}.${spelling('--max-turns')}`);
-  else if (maxTurns === null) problems.push(`\`--max-turns\` has no number after it: write one from 1 to ${CAP_MAX}.`);
-  else if (!/^\d+$/.test(maxTurns)) problems.push(`\`--max-turns ${maxTurns}\` isn't a whole number: use one from 1 to ${CAP_MAX}.`);
-  else if (Number(maxTurns) < 1 || Number(maxTurns) > CAP_MAX) problems.push(`\`--max-turns ${maxTurns}\` is ${Number(maxTurns) < 1 ? 'below 1' : `above ${CAP_MAX}`}: use a number from 1 to ${CAP_MAX}.`);
+  if (maxTurns === undefined) problems.push(`Лимит ходов не задан: добавьте \`--max-turns\` с числом от 1 до ${CAP_MAX}.${spelling('--max-turns')}`);
+  else if (maxTurns === null) problems.push(`После \`--max-turns\` нет числа: напишите число от 1 до ${CAP_MAX}.`);
+  else if (!/^\d+$/.test(maxTurns)) problems.push(`\`--max-turns ${maxTurns}\` — не целое число: используйте число от 1 до ${CAP_MAX}.`);
+  else if (Number(maxTurns) < 1 || Number(maxTurns) > CAP_MAX) problems.push(`\`--max-turns ${maxTurns}\` ${Number(maxTurns) < 1 ? 'меньше 1' : `больше ${CAP_MAX}`}: используйте число от 1 до ${CAP_MAX}.`);
   return problems;
 }
 
 // `guide` is where the page describes the script.
-export function committedScript(script, guide = 'the lesson\'s Your turn') {
+export function committedScript(script, guide = 'разделе «Ваша очередь» урока') {
   return {
-    text: `${code(script)} is committed and executable`,
+    text: `${code(script)} закоммичен и исполняемый`,
     check(repo) {
       const mode = committedMode(repo, script);
-      if (mode === null) return repo.exists(script) ? `${code(script)} isn't committed. Run \`git add ${script}\` and commit it.` : `There is no ${code(script)}. Write it as ${guide} describes, then commit it.`;
+      if (mode === null) return repo.exists(script) ? `${code(script)} не закоммичен. Выполните \`git add ${script}\` и закоммитьте его.` : `Нет файла ${code(script)}. Напишите его по описанию в ${guide}, затем закоммитьте.`;
       if (mode === '100755') return true;
-      if (mode === '100644') return `${code(script)} isn't executable. Run \`chmod +x ${script}\`, then \`git add ${script}\` and commit. On Windows, run \`git update-index --chmod=+x ${script}\` and commit.`;
-      return `${code(script)} is committed as ${mode === '120000' ? 'a symbolic link' : 'something other than a file'}. Commit the script file itself, and make it executable.`;
+      if (mode === '100644') return `${code(script)} не исполняемый. Выполните \`chmod +x ${script}\`, затем \`git add ${script}\` и закоммитьте. В Windows выполните \`git update-index --chmod=+x ${script}\` и закоммитьте.`;
+      return `${code(script)} закоммичен как ${mode === '120000' ? 'символическая ссылка' : 'не файл'}. Закоммитьте сам файл скрипта и сделайте его исполняемым.`;
     },
   };
 }
 
 export function scriptCall(script) {
   return {
-    text: `its \`claude -p\` call asks for JSON, runs in \`dontAsk\` mode, pre-approves only \`Read\`, \`Grep\` and \`Glob\`, caps turns at ${CAP_MAX} or fewer, and has the prompt right after \`-p\``,
+    text: `его вызов \`claude -p\` просит JSON, работает в режиме \`dontAsk\`, заранее одобряет только \`Read\`, \`Grep\` и \`Glob\`, ограничивает ходы числом не больше ${CAP_MAX} и имеет промпт сразу после \`-p\``,
     check(repo) {
       const run = scenario(repo, script, 'review');
       const skipped = notRun(run, script);
       if (skipped) return skipped;
       if (!run.print.length) {
         const why = run.stray.length
-          ? `ran \`claude\` without \`-p\` (or \`--print\`), which starts an interactive session. Add \`-p\`, with the prompt right after it.`
-          : `never ran \`claude -p\`, so the check couldn't see its flags. ${ended(run)}`;
-        return `With a staged change, ${code(script)} ${why}${pending(repo, script)}`;
+          ? `запустил \`claude\` без \`-p\` (или \`--print\`), а это открывает интерактивную сессию. Добавьте \`-p\` и промпт сразу после него.`
+          : `ни разу не запустил \`claude -p\`, поэтому проверка не увидела его флаги. ${ended(run)}`;
+        return `При проиндексированном изменении ${code(script)} ${why}${pending(repo, script)}`;
       }
       const problems = [...new Set(run.print.flatMap((c) => callHints(c.argv)))];
       return problems.length ? `${problems.join(' ')}${pending(repo, script)}` : true;
@@ -220,54 +220,54 @@ const isStubJson = (text) => {
 // saved where the first argument says.
 function reviewProblems(run, fallback) {
   const m = run.markers;
-  if (!run.print.length) return [`With a staged change, the script never ran \`claude -p\`. ${ended(run)}`];
+  if (!run.print.length) return [`При проиндексированном изменении скрипт ни разу не запустил \`claude -p\`. ${ended(run)}`];
   const problems = [];
-  if (run.print.length > 1) problems.push(`With one staged change, it ran \`claude -p\` ${run.print.length} times. Run it once, with the whole staged diff on stdin.`);
-  if (run.stray.length) problems.push('It also ran `claude` without `-p`, which starts an interactive session. Run only the `claude -p` call.');
+  if (run.print.length > 1) problems.push(`При одном проиндексированном изменении он запустил \`claude -p\` ${run.print.length} раз. Запускайте его один раз, подав весь проиндексированный дифф в stdin.`);
+  if (run.stray.length) problems.push('Он также запустил `claude` без `-p`, а это открывает интерактивную сессию. Оставьте только вызов `claude -p`.');
   const [call] = run.print;
   if (!call.stdin.includes(m.staged)) {
     problems.push(call.argv.some((a) => a.includes(m.staged))
-      ? 'It puts the diff in the prompt. Pipe it in instead: `git diff --cached | claude -p "<prompt>" ...`.'
-      : 'What it piped into `claude -p` doesn\'t hold the staged change. Pipe the staged diff in: `git diff --cached | claude -p "<prompt>" ...`.');
+      ? 'Он кладёт дифф в промпт. Подайте его через конвейер: `git diff --cached | claude -p "<prompt>" ...`.'
+      : 'То, что он подал в `claude -p`, не содержит проиндексированного изменения. Подайте проиндексированный дифф: `git diff --cached | claude -p "<prompt>" ...`.');
   } else if (call.stdin.includes(m.unstaged)) {
-    problems.push('The diff it piped into `claude -p` also holds a change that isn\'t staged. Pipe `git diff --cached`, which holds only what is staged.');
+    problems.push('Дифф, поданный в `claude -p`, содержит и непроиндексированное изменение. Подайте `git diff --cached`: в нём только проиндексированное.');
   }
-  if (run.status !== 0) problems.push(`With a staged change and a run that succeeded, it exited with ${exitOf(run)}${stderrTail(run) ? ` (${stderrTail(run)})` : ''}. Exit 0 when the review succeeds.`);
-  if (!run.stdout.includes(m.review)) problems.push('It didn\'t print the review. Print the JSON\'s `result`, as `jq -r \'.result\'` does.');
+  if (run.status !== 0) problems.push(`При проиндексированном изменении и успешном запуске он завершился с кодом ${exitOf(run)}${stderrTail(run) ? ` (${stderrTail(run)})` : ''}. Завершайтесь с кодом 0, когда рецензия удалась.`);
+  if (!run.stdout.includes(m.review)) problems.push('Он не вывел рецензию. Выведите поле `result` из JSON, как это делает `jq -r \'.result\'`.');
   const saved = run.saved[`out/${OUT}`];
-  const save = `Save the output of \`claude -p\` to the path in the first argument, or to ${code(fallback)} without one: \`out="\${1:-${fallback}}"\`, then \`> "$out"\`.`;
-  if (saved === undefined) problems.push(run.saved[fallback] !== undefined ? `It saved the JSON to ${code(fallback)}, though its first argument named another path. ${save}` : `It didn't save the JSON to the path in its first argument. ${save}`);
-  else if (!isStubJson(saved)) problems.push('The file at the path in its first argument isn\'t the JSON `claude -p` printed. Save that output unchanged.');
+  const save = `Сохраняйте вывод \`claude -p\` по пути из первого аргумента, а без аргумента — в ${code(fallback)}: \`out="\${1:-${fallback}}"\`, затем \`> "$out"\`.`;
+  if (saved === undefined) problems.push(run.saved[fallback] !== undefined ? `Он сохранил JSON в ${code(fallback)}, хотя первый аргумент указывал другой путь. ${save}` : `Он не сохранил JSON по пути из первого аргумента. ${save}`);
+  else if (!isStubJson(saved)) problems.push('Файл по пути из первого аргумента — не тот JSON, который вывел `claude -p`. Сохраняйте этот вывод без изменений.');
   return problems;
 }
 
 function defaultProblems(run, fallback) {
-  if (run.timedOut) return [`Run without an argument, it ${timedOut}.`];
+  if (run.timedOut) return [`Запущенный без аргумента, он ${timedOut}.`];
   const saved = run.saved[fallback];
   if (saved === undefined) {
     const folder = posix.dirname(fallback);
-    if (run.stderr.includes(fallback) && /No such file or directory/.test(run.stderr)) return [`Run without an argument in a fresh copy, where ${code(`${folder}/`)} doesn't exist yet, it couldn't write ${code(fallback)}. Create the folder first, as \`mkdir -p "$(dirname "$out")"\` does.`];
-    const how = run.status !== 0 ? ` (it exited with ${exitOf(run)}${stderrTail(run) ? `: ${stderrTail(run)}` : ''})` : '';
-    return [`Run without an argument, it didn't save the JSON to ${code(fallback)}${how}. Use that path when there is no argument: \`out="\${1:-${fallback}}"\`.`];
+    if (run.stderr.includes(fallback) && /No such file or directory/.test(run.stderr)) return [`Запущенный без аргумента в свежей копии, где ${code(`${folder}/`)} ещё нет, он не смог записать ${code(fallback)}. Сначала создайте папку, как это делает \`mkdir -p "$(dirname "$out")"\`.`];
+    const how = run.status !== 0 ? ` (он завершился с кодом ${exitOf(run)}${stderrTail(run) ? `: ${stderrTail(run)}` : ''})` : '';
+    return [`Запущенный без аргумента, он не сохранил JSON в ${code(fallback)}${how}. Используйте этот путь, когда аргумента нет: \`out="\${1:-${fallback}}"\`.`];
   }
-  return isStubJson(saved) ? [] : [`Run without an argument, it saved something other than the JSON \`claude -p\` printed to ${code(fallback)}.`];
+  return isStubJson(saved) ? [] : [`Запущенный без аргумента, он сохранил в ${code(fallback)} не тот JSON, который вывел \`claude -p\`.`];
 }
 
 function failureProblems(failed, isError) {
   const problems = [];
-  if (failed.timedOut) problems.push(`When \`claude -p\` exits non-zero, it ${timedOut}. Exit non-zero too, without waiting or trying again.`);
-  else if (failed.status === 0) problems.push('When `claude -p` exits non-zero and prints no JSON, as it does for a flag it can\'t read, it exited 0. Exit non-zero whenever `claude -p` does.');
-  if (isError.timedOut) problems.push(`When the JSON says \`"is_error": true\`, it ${timedOut}.`);
-  else if (isError.status === 0) problems.push('When the JSON says `"is_error": true` and `claude -p` exits 0, it exited 0. Exit non-zero whenever `is_error` is `true`: test `jq -r \'.is_error\'`.');
+  if (failed.timedOut) problems.push(`Когда \`claude -p\` завершается с ненулевым кодом, он ${timedOut}. Завершайтесь с ненулевым кодом тоже, не ожидая и не повторяя.`);
+  else if (failed.status === 0) problems.push('Когда `claude -p` завершается с ненулевым кодом и не выводит JSON, как при нечитаемом флаге, скрипт завершился с кодом 0. Завершайтесь с ненулевым кодом всегда, когда так делает `claude -p`.');
+  if (isError.timedOut) problems.push(`Когда в JSON \`"is_error": true\`, он ${timedOut}.`);
+  else if (isError.status === 0) problems.push('Когда в JSON `"is_error": true`, а `claude -p` завершается с кодом 0, скрипт завершился с кодом 0. Завершайтесь с ненулевым кодом всегда, когда `is_error` равен `true`: проверяйте `jq -r \'.is_error\'`.');
   return problems;
 }
 
 function emptyProblems(run) {
-  if (run.timedOut) return [`With nothing staged, it ${timedOut}.`];
+  if (run.timedOut) return [`Когда ничего не проиндексировано, он ${timedOut}.`];
   const problems = [];
-  if (run.print.length) problems.push('With nothing staged, it still ran `claude -p`. Test for a staged change first, as `git diff --cached --quiet` does, and stop before calling Claude.');
-  if (run.status === 0) problems.push('With nothing staged, it exited 0. Exit non-zero, so whatever runs it can tell that no review ran.');
-  if (!`${run.stdout}${run.stderr}`.trim()) problems.push('With nothing staged, it printed nothing. Say that nothing is staged.');
+  if (run.print.length) problems.push('Когда ничего не проиндексировано, он всё равно запустил `claude -p`. Сначала проверьте наличие проиндексированного изменения, как это делает `git diff --cached --quiet`, и остановитесь до вызова Claude.');
+  if (run.status === 0) problems.push('Когда ничего не проиндексировано, он завершился с кодом 0. Завершайтесь с ненулевым кодом, чтобы тот, кто его запускает, понял, что рецензии не было.');
+  if (!`${run.stdout}${run.stderr}`.trim()) problems.push('Когда ничего не проиндексировано, он ничего не вывел. Сообщите, что ничего не проиндексировано.');
   return problems;
 }
 
@@ -275,19 +275,19 @@ function emptyProblems(run) {
 // lesson's path, which the capstone's script keeps.
 export function scriptBehavior(script, fallback = RESULT) {
   return {
-    text: 'it pipes the staged diff in, saves the JSON where its argument says, prints the result, exits non-zero when the run fails, and doesn\'t call Claude when nothing is staged',
+    text: 'он подаёт проиндексированный дифф через конвейер, сохраняет JSON по пути из аргумента, выводит результат, завершается с ненулевым кодом при сбое запуска и не вызывает Claude, когда ничего не проиндексировано',
     check(repo) {
       const review = scenario(repo, script, 'review');
       const skipped = notRun(review, script);
       if (skipped) return skipped;
       if (missingJq(review)) return JQ;
       // A script that hangs on a staged change would hang in every run.
-      if (review.timedOut) return `With a staged change, ${code(script)} ${timedOut}.${pending(repo, script)}`;
+      if (review.timedOut) return `При проиндексированном изменении ${code(script)} ${timedOut}.${pending(repo, script)}`;
       const [noArgument, failed, isError, nothingStaged] = ['noArgument', 'failed', 'isError', 'nothingStaged'].map((n) => scenario(repo, script, n));
       if ([noArgument, failed, isError, nothingStaged].some(missingJq)) return JQ;
       const problems = [...reviewProblems(review, fallback), ...defaultProblems(noArgument, fallback), ...failureProblems(failed, isError), ...emptyProblems(nothingStaged)];
       if (!problems.length) return true;
-      const more = problems.length > 3 ? ` And ${problems.length - 3} more: fix these and run the check again.` : '';
+      const more = problems.length > 3 ? ` И ещё ${problems.length - 3}: исправьте эти и запустите проверку снова.` : '';
       return `${problems.slice(0, 3).join(' ')}${more}${pending(repo, script)}`;
     },
   };
@@ -298,29 +298,29 @@ export function scriptBehavior(script, fallback = RESULT) {
 // final answer too (How the agent loop works). The lesson's dry-run confirms
 // the bound.
 export function savedRun(result, script) {
-  const run = `stage a change and run \`${script}${result === RESULT ? '' : ` ${result}`}\``;
-  const again = `Then ${run} again.`;
+  const run = `проиндексируйте изменение и выполните \`${script}${result === RESULT ? '' : ` ${result}`}\``;
+  const again = `Затем снова: ${run}.`;
   return {
-    text: `${code(result)} holds a run that succeeded within your cap`,
+    text: `${code(result)} содержит успешный запуск в пределах вашего лимита`,
     local: true,
     check(repo) {
       const text = repo.read(result);
-      if (text === null || !text.trim()) return `There is no ${code(result)} yet: ${run}, which saves the JSON there.`;
+      if (text === null || !text.trim()) return `Файла ${code(result)} ещё нет: ${run}, это сохранит туда JSON.`;
       let value;
       try {
         value = JSON.parse(text);
       } catch {
-        return `${code(result)} isn't JSON. Save the output of \`claude -p --output-format json\` there unchanged. ${again}`;
+        return `${code(result)} — не JSON. Сохраните туда вывод \`claude -p --output-format json\` без изменений. ${again}`;
       }
-      if (value?.type !== 'result') return `${code(result)} isn't the result of a \`claude -p\` run with \`--output-format json\`. ${again}`;
-      if (value.session_id === STUB_SESSION) return `${code(result)} holds the check's stand-in reply, not a real run: your script saved it there while the check ran it. Save the JSON only where the script's first argument says. ${again}`;
-      if (value.subtype !== 'success') return `The run in ${code(result)} stopped early (${code(String(value.subtype))}) and holds no review.${value.subtype === 'error_max_turns' ? ` Raise the cap, up to ${CAP_MAX}, or narrow the prompt.` : ''} ${again}`;
-      if (value.is_error !== false) return `The run in ${code(result)} failed${typeof value.result === 'string' && value.result.trim() ? `: "${quoted(value.result)}"` : ''}. Fix what it says. ${again}`;
-      if (typeof value.result !== 'string' || !value.result.trim()) return `The run in ${code(result)} holds no review in \`result\`. ${again}`;
-      if (typeof value.session_id !== 'string' || !value.session_id) return `The run in ${code(result)} has no \`session_id\`, so it isn't the JSON \`claude -p\` saves. ${again}`;
+      if (value?.type !== 'result') return `${code(result)} — не результат запуска \`claude -p\` с \`--output-format json\`. ${again}`;
+      if (value.session_id === STUB_SESSION) return `В ${code(result)} лежит подставной ответ проверки, а не настоящий запуск: ваш скрипт сохранил его туда, пока проверка его запускала. Сохраняйте JSON только по пути из первого аргумента скрипта. ${again}`;
+      if (value.subtype !== 'success') return `Запуск в ${code(result)} остановился раньше времени (${code(String(value.subtype))}) и не содержит рецензии.${value.subtype === 'error_max_turns' ? ` Поднимите лимит (до ${CAP_MAX}) или сузьте промпт.` : ''} ${again}`;
+      if (value.is_error !== false) return `Запуск в ${code(result)} завершился сбоем${typeof value.result === 'string' && value.result.trim() ? `: «${quoted(value.result)}»` : ''}. Исправьте то, о чём там сказано. ${again}`;
+      if (typeof value.result !== 'string' || !value.result.trim()) return `В запуске в ${code(result)} нет рецензии в \`result\`. ${again}`;
+      if (typeof value.session_id !== 'string' || !value.session_id) return `В запуске в ${code(result)} нет \`session_id\`, значит, это не тот JSON, который сохраняет \`claude -p\`. ${again}`;
       const cap = capOf(repo, script);
-      if (!Number.isInteger(value.num_turns) || value.num_turns < 1) return `The run in ${code(result)} has no turn count in \`num_turns\`, so it isn't the JSON \`claude -p\` saves. ${again}`;
-      if (value.num_turns > cap + 1) return `The run in ${code(result)} took ${value.num_turns} turns, more than \`--max-turns ${cap}\` allows, so it ran with a higher cap. ${again}`;
+      if (!Number.isInteger(value.num_turns) || value.num_turns < 1) return `В запуске в ${code(result)} нет числа ходов в \`num_turns\`, значит, это не тот JSON, который сохраняет \`claude -p\`. ${again}`;
+      if (value.num_turns > cap + 1) return `Запуск в ${code(result)} занял ${value.num_turns} ходов, больше, чем допускает \`--max-turns ${cap}\`, значит, он шёл с более высоким лимитом. ${again}`;
       return true;
     },
   };

@@ -16,7 +16,7 @@ import {
   parseJson, passingMarketplaces, pluginComponents, pluginFolders, registration, relativePath, uncommittedFiles,
 } from '../marketplace.mjs';
 
-export const title = 'Share your setup with a team';
+export const title = 'Поделитесь настройкой с командой';
 
 export const VALIDATE = '.practice/a-6-validate.json';
 const SETTINGS = '.claude/settings.json';
@@ -33,7 +33,7 @@ const TUTOR = 'skills/tutor/SKILL.md';
 const INTERPRETERS = new Set(['bash', 'sh', 'zsh', 'node', 'python', 'python3', 'env', 'deno', 'bun', 'ruby', 'perl', 'pwsh']);
 const PLUGIN_ROOT = /^\$\{?CLAUDE_PLUGIN_ROOT\}?\/(.+)$/;
 
-const and = (list) => (list.length > 1 ? `${list.slice(0, -1).join(', ')} and ${list.at(-1)}` : list[0]);
+const and = (list) => (list.length > 1 ? `${list.slice(0, -1).join(', ')} и ${list.at(-1)}` : list[0]);
 const code = (text) => `\`${text}\``;
 const shell = (path) => (/\s/.test(path) ? `"${path}"` : path);
 const isObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -54,13 +54,13 @@ const mainPlugin = (repo) => listedPlugins(repo)[0] ?? EXAMPLE;
 // What the hints say to do when there is no marketplace or no settings yet,
 // as the lesson's page says it. The Advanced capstone passes its own.
 const LESSON = {
-  marketplace: 'Download the example marketplace into `team-marketplace/`, as the Worked example shows',
-  settings: 'as the Worked example shows',
+  marketplace: 'Скачайте пример marketplace в `team-marketplace/`, как показано в разделе «Разбор на примере»',
+  settings: 'как показано в разделе «Разбор на примере»',
 };
 
 export function marketplaceItem(page = LESSON) {
   return {
-    text: 'a committed team marketplace lists a plugin by a relative path, and the entry\'s name matches the `name` in the plugin\'s `plugin.json`',
+    text: 'закоммиченный marketplace команды перечисляет плагин по относительному пути, а имя записи совпадает с `name` в `plugin.json` плагина',
     check: (repo) => (passingMarketplaces(repo).length ? true : marketplaceHint(repo, page.marketplace)),
   };
 }
@@ -82,24 +82,24 @@ function settingsHint(repo, settings, marketplaces, page) {
   if (settings === null) {
     if (repo.exists(SETTINGS)) return commitHint(repo, SETTINGS);
     const [m] = marketplaces;
-    return `There is no committed ${code(SETTINGS)}. Create it with \`"extraKnownMarketplaces": { "${m.name}": { "source": { "source": "directory", "path": "${relativePath(m.root)}" } } }\` and \`"enabledPlugins": { "${m.plugins[0].name}@${m.name}": true }\`, ${page.settings}, and commit it.`;
+    return `Нет закоммиченного ${code(SETTINGS)}. Создайте его с \`"extraKnownMarketplaces": { "${m.name}": { "source": { "source": "directory", "path": "${relativePath(m.root)}" } } }\` и \`"enabledPlugins": { "${m.plugins[0].name}@${m.name}": true }\`, ${page.settings}, и закоммитьте.`;
   }
-  if (settings.error) return `The committed ${code(SETTINGS)} isn't valid JSON: ${settings.error}`;
-  if (!isObject(settings.value)) return `The committed ${code(SETTINGS)} isn't a JSON object.`;
+  if (settings.error) return `Закоммиченный ${code(SETTINGS)} — невалидный JSON: ${settings.error}`;
+  if (!isObject(settings.value)) return `Закоммиченный ${code(SETTINGS)} — не JSON-объект.`;
   const result = registration(settings.value, marketplaces);
   return result.ok ? null : result.hint;
 }
 
 export function settingsItem(page = LESSON) {
   return {
-    text: 'the committed `.claude/settings.json` registers that marketplace by a relative path and turns the plugin on',
+    text: 'закоммиченный `.claude/settings.json` регистрирует этот marketplace по относительному пути и включает плагин',
     check(repo) {
       const marketplaces = passingMarketplaces(repo);
-      if (!marketplaces.length) return 'No committed marketplace passes the item above yet, so the check can\'t tell which one `.claude/settings.json` should register. Fix that first.';
+      if (!marketplaces.length) return 'Ни один закоммиченный marketplace пока не проходит пункт выше, поэтому проверка не знает, какой из них должен регистрировать `.claude/settings.json`. Сначала исправьте это.';
       const settings = committedSettings(repo);
       const hint = settingsHint(repo, settings, marketplaces, page);
       if (hint === null) return true;
-      if (settings !== null && pendingSettings(repo, marketplaces)) return `Your copy of ${code(SETTINGS)} registers the marketplace and turns the plugin on, but that change isn't committed. Run \`git add ${SETTINGS}\` and commit it.`;
+      if (settings !== null && pendingSettings(repo, marketplaces)) return `Ваша копия ${code(SETTINGS)} регистрирует marketplace и включает плагин, но это изменение не закоммичено. Выполните \`git add ${SETTINGS}\` и закоммитьте.`;
       return hint;
     },
   };
@@ -164,9 +164,9 @@ function projectSetup(repo, files) {
 // `{ ok }` or `{ hint }`.
 function reviewHooks(repo, plugin, path, project, committed) {
   const parsed = parseJson(headText(repo, path) ?? '');
-  if (parsed.error) return { hint: `The committed ${code(path)} isn't valid JSON: ${parsed.error}` };
+  if (parsed.error) return { hint: `Закоммиченный ${code(path)} — невалидный JSON: ${parsed.error}` };
   const list = handlers(parsed.value?.hooks);
-  if (!list.length) return { hint: `The committed ${code(path)} holds no hook. Put the entry under a top-level \`hooks\` key, in the same shape as in a settings file.` };
+  if (!list.length) return { hint: `В закоммиченном ${code(path)} нет ни одного hook. Положите запись под ключ верхнего уровня \`hooks\`, в том же виде, что и в файле настроек.` };
   const problems = [];
   const theirs = project.hooks.map((h) => ({ command: commandOf(h), names: scripts(h).map((s) => posix.basename(s)) }));
   for (const h of list) {
@@ -174,12 +174,12 @@ function reviewHooks(repo, plugin, path, project, committed) {
     const twice = theirs.find((t) => (t.command && t.command === commandOf(h)) || t.names.some((n) => words.some((w) => posix.basename(w) === n)));
     const stays = words.find((w) => /(^|\/)\.claude\//.test(w));
     const missing = words.map((w) => w.match(PLUGIN_ROOT)?.[1]).filter(Boolean).map((rel) => `${plugin.dir ? `${plugin.dir}/` : ''}${posix.normalize(rel)}`).find((p) => !committed.has(p));
-    if (twice) problems.push(`\`${SETTINGS}\` still runs the same hook${twice.names.length ? `, ${code(twice.names[0])}` : ''}, so it would run twice each time its event fires. Remove that hook from \`${SETTINGS}\` and commit.`);
-    else if (stays) problems.push(`The hook in ${code(path)} still runs ${code(stays)}, a script in \`.claude/\`. Move the script into the plugin and call it as \`\${CLAUDE_PLUGIN_ROOT}/<path in the plugin>\`, then commit.`);
+    if (twice) problems.push(`\`${SETTINGS}\` по-прежнему запускает тот же hook${twice.names.length ? `, ${code(twice.names[0])}` : ''}, поэтому он выполнялся бы дважды при каждом событии. Удалите этот hook из \`${SETTINGS}\` и закоммитьте.`);
+    else if (stays) problems.push(`Hook в ${code(path)} по-прежнему запускает ${code(stays)}, скрипт в \`.claude/\`. Перенесите скрипт в плагин и вызывайте его как \`\${CLAUDE_PLUGIN_ROOT}/<путь в плагине>\`, затем закоммитьте.`);
     else if (missing) {
       problems.push(existsSync(join(repo.dir, missing))
-        ? `The hook in ${code(path)} runs ${code(missing)}, but ${commitHint(repo, missing).replace(/^`[^`]+` /, 'it ')}`
-        : `The hook in ${code(path)} runs ${code(missing)}, which isn't in the plugin. Put the script there, or fix the path after \`\${CLAUDE_PLUGIN_ROOT}/\`, and commit.`);
+        ? `Hook в ${code(path)} запускает ${code(missing)}, но ${commitHint(repo, missing).replace(/^`[^`]+` /, 'он ')}`
+        : `Hook в ${code(path)} запускает ${code(missing)}, которого нет в плагине. Положите скрипт туда или исправьте путь после \`\${CLAUDE_PLUGIN_ROOT}/\` и закоммитьте.`);
     }
     else return { ok: true };
   }
@@ -187,10 +187,10 @@ function reviewHooks(repo, plugin, path, project, committed) {
 }
 
 export const movedComponent = {
-  text: 'a component you moved is in the plugin and gone from `.claude/`',
+  text: 'перенесённый вами компонент лежит в плагине и исчез из `.claude/`',
   check(repo) {
     const plugins = listedPlugins(repo);
-    if (!plugins.length) return 'No committed marketplace lists a committed plugin yet, so there is nowhere to move a component to. Pass the first item, then move a skill, a subagent or a hook into the plugin.';
+    if (!plugins.length) return 'Ни один закоммиченный marketplace пока не перечисляет закоммиченный плагин, так что переносить компонент некуда. Пройдите первый пункт, затем перенесите в плагин skill, субагент или hook.';
     const files = committedFiles(repo);
     const committed = new Set(files);
     const project = projectSetup(repo, files);
@@ -200,12 +200,12 @@ export const movedComponent = {
       for (const { path, rel } of skills.filter((s) => !KIT.has(s.rel) && s.rel !== TUTOR)) {
         const [name] = skillNames(repo, path, true);
         const twin = project.skills.find((s) => s.names.includes(name));
-        tried.push(twin ? { hint: `${code(path)} is in the plugin, but ${code(twin.path)} is still committed, so the skill loads twice, as \`/${name}\` and \`/${plugin.name}:${name}\`. Run \`git rm -r ${shell(posix.dirname(twin.path))}\` and commit.` } : { ok: rel });
+        tried.push(twin ? { hint: `${code(path)} лежит в плагине, но ${code(twin.path)} всё ещё закоммичен, поэтому skill загружается дважды, как \`/${name}\` и \`/${plugin.name}:${name}\`. Выполните \`git rm -r ${shell(posix.dirname(twin.path))}\` и закоммитьте.` } : { ok: rel });
       }
       for (const { path, rel } of agents.filter((a) => !KIT.has(a.rel))) {
         const name = agentName(repo, path, true);
         const twin = project.agents.find((a) => a.name === name);
-        tried.push(twin ? { hint: `${code(path)} is in the plugin, but ${code(twin.path)} is still committed, so the subagent loads twice, as ${code(name)} and ${code(`${plugin.name}:${name}`)}. Run \`git rm ${shell(twin.path)}\` and commit.` } : { ok: rel });
+        tried.push(twin ? { hint: `${code(path)} лежит в плагине, но ${code(twin.path)} всё ещё закоммичен, поэтому субагент загружается дважды, как ${code(name)} и ${code(`${plugin.name}:${name}`)}. Выполните \`git rm ${shell(twin.path)}\` и закоммитьте.` } : { ok: rel });
       }
       for (const { path } of hooks) tried.push(reviewHooks(repo, plugin, path, project, committed));
     }
@@ -223,12 +223,12 @@ export const movedComponent = {
     const tutor = plugins.map((pl) => `${pl.dir ? `${pl.dir}/` : ''}${TUTOR}`).find((p) => committed.has(p));
     if (tutor) {
       // Still committed at its own path, the plugin's tutor is a copy: remove it rather than move it back.
-      const fix = committed.has(`.claude/${TUTOR}`) ? `Remove the copy with \`git rm -r ${shell(posix.dirname(tutor))}\`` : 'Move it back to `.claude/skills/tutor/` with `git mv`';
-      return `${code(tutor)} is the practice copy's \`/tutor\` skill, which came with the template, so it doesn't count as one of your own. ${fix}, then move a skill, a subagent or a hook of your own into the plugin, and commit.`;
+      const fix = committed.has(`.claude/${TUTOR}`) ? `Удалите копию командой \`git rm -r ${shell(posix.dirname(tutor))}\`` : 'Верните его в `.claude/skills/tutor/` командой `git mv`';
+      return `${code(tutor)} — это skill \`/tutor\` учебной копии, он пришёл с шаблоном, поэтому не считается вашим собственным. ${fix}, затем перенесите в плагин свой skill, субагент или hook и закоммитьте.`;
     }
     const [{ dir }] = plugins;
     const at = (rest) => code(dir ? `${dir}/${rest}` : rest);
-    return `The plugin holds only the example's \`onboard\` skill and \`config-reviewer\` subagent. Move one of your own into it: a skill to ${at('skills/<name>/SKILL.md')}, a subagent to ${at('agents/<name>.md')}, or a hook into ${at('hooks/hooks.json')}, as Your turn describes, with \`git mv\` so the original leaves \`.claude/\`. Then commit.`;
+    return `В плагине только skill \`onboard\` и субагент \`config-reviewer\` из примера. Перенесите в него свой компонент: skill в ${at('skills/<name>/SKILL.md')}, субагент в ${at('agents/<name>.md')} или hook в ${at('hooks/hooks.json')}, как описано в разделе «Ваша очередь», командой \`git mv\`, чтобы оригинал исчез из \`.claude/\`. Затем закоммитьте.`;
   },
 };
 
@@ -241,22 +241,22 @@ function tracked(repo, ...args) {
 }
 
 export const personalFiles = {
-  text: 'a committed `.gitignore` keeps `.claude/settings.local.json` and `CLAUDE.local.md` out, and git tracks neither',
+  text: 'закоммиченный `.gitignore` исключает `.claude/settings.local.json` и `CLAUDE.local.md`, и git не отслеживает ни тот, ни другой',
   check(repo) {
     const problems = [];
     const unruled = [];
     for (const path of PERSONAL) {
       if (tracked(repo, 'ls-files', '--', path)) {
-        problems.push(`git tracks ${code(path)}, which is yours alone. Run \`git rm --cached ${path}\`, add the line ${code(path)} to \`.gitignore\`, and commit.`);
+        problems.push(`git отслеживает ${code(path)}, а этот файл только ваш. Выполните \`git rm --cached ${path}\`, добавьте строку ${code(path)} в \`.gitignore\` и закоммитьте.`);
       } else if (tracked(repo, 'ls-tree', '--name-only', 'HEAD', '--', path)) {
-        problems.push(`${code(path)} is still in your last commit. Commit its removal.`);
+        problems.push(`${code(path)} всё ещё есть в вашем последнем коммите. Закоммитьте его удаление.`);
       } else {
         const rule = committedIgnore(repo, path);
         if (rule.problem === 'none') unruled.push(path);
         else if (rule.problem) problems.push(ignoreHint(rule, path));
       }
     }
-    if (unruled.length > 1) problems.push(`No committed \`.gitignore\` ignores ${and(unruled.map(code))}. Add the lines ${and(unruled.map(code))} to \`.gitignore\` and commit it. A rule in your global git excludes file doesn't count: it isn't in the repository.`);
+    if (unruled.length > 1) problems.push(`Ни один закоммиченный \`.gitignore\` не игнорирует ${and(unruled.map(code))}. Добавьте строки ${and(unruled.map(code))} в \`.gitignore\` и закоммитьте. Правило в вашем глобальном файле исключений git не считается: его нет в репозитории.`);
     else if (unruled.length) problems.push(ignoreHint({ problem: 'none' }, unruled[0]));
     return problems.length ? problems.join(' ') : true;
   },
@@ -281,33 +281,33 @@ function messages(report) {
 // The saved report of `claude plugin validate <plugin folder> --strict --json`.
 export function strictValidation(record = VALIDATE) {
   return {
-    text: `${code(record)} records a strict validation of the plugin directory that passed`,
+    text: `${code(record)} содержит успешную строгую проверку папки плагина`,
     local: true,
     check(repo) {
       const plugin = mainPlugin(repo);
       const save = `\`claude plugin validate ${shell(relativePath(plugin.dir))} --strict --json > ${record}\``;
       const text = repo.read(record);
-      if (text === null || !text.trim()) return `There is no ${code(record)} yet. From the repository's root, once the plugin is in place, run ${save}.`;
+      if (text === null || !text.trim()) return `Файла ${code(record)} ещё нет. Когда плагин на месте, выполните из корня репозитория ${save}.`;
       let report;
       try {
         report = JSON.parse(text);
       } catch {
-        if (/Validation (passed|failed)/.test(text)) return `${code(record)} holds the text report. Save the JSON one, with \`--json\`: ${save}.`;
-        return `${code(record)} isn't JSON. Save the report unchanged: ${save}.`;
+        if (/Validation (passed|failed)/.test(text)) return `В ${code(record)} текстовый отчёт. Сохраните JSON-отчёт с \`--json\`: ${save}.`;
+        return `${code(record)} — не JSON. Сохраните отчёт без изменений: ${save}.`;
       }
-      if (!isObject(report) || !('success' in report)) return `${code(record)} isn't a report from \`claude plugin validate --json\`: it has no \`success\`. Save it again: ${save}.`;
+      if (!isObject(report) || !('success' in report)) return `${code(record)} — не отчёт \`claude plugin validate --json\`: в нём нет \`success\`. Сохраните заново: ${save}.`;
       if (report.success !== true) {
         const found = messages(report);
-        const said = found.length ? ` It reports: ${found.slice(0, 2).map(code).join('; ')}${found.length > 2 ? `, and ${found.length - 2} more` : ''}.` : '';
-        return `${code(record)} records a validation that failed.${said} Fix what it reports, run \`claude plugin validate ${shell(relativePath(plugin.dir))} --strict\` until it passes, then save the report again: ${save}.`;
+        const said = found.length ? ` Сообщается: ${found.slice(0, 2).map(code).join('; ')}${found.length > 2 ? ` и ещё ${found.length - 2}` : ''}.` : '';
+        return `В ${code(record)} проверка не пройдена.${said} Исправьте то, о чём сообщается, выполняйте \`claude plugin validate ${shell(relativePath(plugin.dir))} --strict\`, пока она не пройдёт, затем сохраните отчёт заново: ${save}.`;
       }
-      if (report.strict !== true) return `${code(record)} records a validation without \`--strict\`, which lets warnings through. Run it with \`--strict\`: ${save}.`;
+      if (report.strict !== true) return `В ${code(record)} проверка без \`--strict\`, а она пропускает предупреждения. Запустите с \`--strict\`: ${save}.`;
       const target = typeof report.target === 'string' ? report.target.trim() : '';
-      if (!target) return `${code(record)} has no \`target\`, so the check can't tell what was validated. Save the report unchanged: ${save}.`;
+      if (!target) return `В ${code(record)} нет \`target\`, поэтому проверка не знает, что проверялось. Сохраните отчёт без изменений: ${save}.`;
       const slashed = target.replace(/\\/g, '/');
-      if (/(?:^|\/)\.claude-plugin\/marketplace\.json$/.test(slashed)) return `${code(record)} records a validation of the marketplace, ${code(target)}, which doesn't open the plugin's skill and agent files. Validate the plugin directory: ${save}.`;
+      if (/(?:^|\/)\.claude-plugin\/marketplace\.json$/.test(slashed)) return `В ${code(record)} проверен marketplace, ${code(target)}, а он не открывает файлы skills и агентов плагина. Проверьте папку плагина: ${save}.`;
       const dirs = pluginFolders(repo);
-      if (!dirs.length) return `There is no committed plugin directory, a folder with \`.claude-plugin/plugin.json\`, for ${code(record)} to match. Commit the plugin, then save the report again: ${save}.`;
+      if (!dirs.length) return `Нет закоммиченной папки плагина — папки с \`.claude-plugin/plugin.json\`, — которой мог бы соответствовать ${code(record)}. Закоммитьте плагин, затем сохраните отчёт заново: ${save}.`;
       const listed = and(dirs.map((d) => code(relativePath(d))));
       const where = real(target);
       if (where !== null) {
@@ -317,8 +317,8 @@ export function strictValidation(record = VALIDATE) {
         });
         if (ok) return true;
         const rel = relative(real(repo.dir) ?? repo.dir, where);
-        if (!rel || rel.startsWith('..') || isAbsolute(rel)) return `${code(record)} records a validation of ${code(target)}, ${rel ? 'outside this repository' : 'the repository itself'}, not of a plugin directory in it (${listed}). From the repository's root, run ${save}.`;
-        return `${code(record)} records a validation of ${code(rel.replace(/\\/g, '/'))}, which isn't a committed plugin directory (${listed}). Run ${save}.`;
+        if (!rel || rel.startsWith('..') || isAbsolute(rel)) return `В ${code(record)} проверено ${code(target)}, ${rel ? 'вне этого репозитория' : 'сам репозиторий'}, а не папка плагина в нём (${listed}). Выполните из корня репозитория ${save}.`;
+        return `В ${code(record)} проверено ${code(rel.replace(/\\/g, '/'))}, а это не закоммиченная папка плагина (${listed}). Выполните ${save}.`;
       }
       // A path that isn't on this machine was saved elsewhere: it must end in
       // a committed plugin folder, or in that folder's plugin.json.
@@ -328,7 +328,7 @@ export function strictValidation(record = VALIDATE) {
         const own = d ? d.split('/') : [];
         return (own.length && ends(own)) || ends([...own, '.claude-plugin', 'plugin.json']);
       })) return true;
-      return `${code(record)} records a validation of ${code(target)}, which isn't on this machine and doesn't end in a committed plugin directory (${listed}). From the repository's root, run ${save}.`;
+      return `В ${code(record)} проверено ${code(target)}, чего нет на этой машине и что не оканчивается закоммиченной папкой плагина (${listed}). Выполните из корня репозитория ${save}.`;
     },
   };
 }

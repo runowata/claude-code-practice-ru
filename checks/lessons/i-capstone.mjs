@@ -11,7 +11,7 @@ import { items as mcp } from './i-7.mjs';
 import { items as plugins } from './i-8.mjs';
 import { testsPass, nothingUncommitted } from './b-3.mjs';
 
-export const title = 'Intermediate capstone';
+export const title = 'Итоговый проект среднего уровня';
 
 const READ_ONLY = new Set(['Read', 'Grep', 'Glob', 'LSP', 'WebFetch', 'WebSearch']);
 const list = (value) => (Array.isArray(value) ? value : String(value ?? '').split(',')).map((t) => t.trim()).filter(Boolean);
@@ -38,26 +38,26 @@ const words = (text) => String(text ?? '').split(/\s+/).filter((w) => w && w !==
 const LINKCHECK = /npm run linkcheck|src\/cli\.js/;
 
 const skill = {
-  text: 'a committed project skill that runs the link checker by name and can load on its own',
+  text: 'закоммиченный skill проекта, который запускает проверку ссылок и может подгружаться сам',
   check(repo) {
     const ok = committedFiles(repo, '.claude/skills', '/SKILL.md').some((path) => {
       const file = committedFile(repo, path);
       const f = file?.fields;
       return f && LINKCHECK.test(file.body) && words(f.description) >= 8 && String(f['disable-model-invocation']) !== 'true' && String(f['user-invocable']) !== 'false';
     });
-    return ok ? true : 'Commit a skill in `.claude/skills/<name>/SKILL.md` whose instructions run the link checker (`npm run linkcheck -- <folder>`), with a description of what it does and when to use it, and without `disable-model-invocation: true`, as in lesson 1.';
+    return ok ? true : 'Закоммитьте skill в `.claude/skills/<имя>/SKILL.md`, чьи инструкции запускают проверку ссылок (`npm run linkcheck -- <папка>`): с описанием, что он делает и когда его применять, и без `disable-model-invocation: true`, как в уроке 1.';
   },
 };
 
 const reviewer = {
-  text: 'a committed reviewer subagent with only read-only tools',
+  text: 'закоммиченный субагент-рецензент только с инструментами для чтения',
   check(repo) {
     const ok = committedFiles(repo, '.claude/agents', '.md').some((path) => {
       const f = committedFile(repo, path)?.fields;
       const tools = list(f?.tools);
       return f?.name && /review/i.test(`${f.name} ${f.description}`) && words(f.description) >= 5 && tools.length && tools.every((t) => READ_ONLY.has(t));
     });
-    return ok ? true : 'Commit a reviewer in `.claude/agents/`: a subagent whose name or description says it reviews changes, with a `tools` list of read-only tools only, such as `Read, Grep, Glob`, as in lesson 6.';
+    return ok ? true : 'Закоммитьте рецензента в `.claude/agents/`: субагента, в имени или описании которого сказано, что он проверяет изменения, со списком `tools` только из инструментов для чтения, например `Read, Grep, Glob`, как в уроке 6.';
   },
 };
 
@@ -70,24 +70,24 @@ function committedSettings(repo) {
 }
 
 const hook = {
-  text: 'a committed, executable `PreToolUse` hook for Edit and Write blocks `samples/` and nothing else',
+  text: 'закоммиченный исполняемый hook `PreToolUse` для Edit и Write блокирует `samples/` и ничего больше',
   check(repo) {
     const scripts = editWriteScripts(committedSettings(repo)).filter((s) => committedMode(repo, s) === '100755');
-    if (!scripts.length) return 'Commit an executable script in `.claude/hooks/` and run it from `.claude/settings.json` as a `PreToolUse` hook with the matcher `Edit|Write`, as in lesson 5, to keep Claude out of samples/.';
+    if (!scripts.length) return 'Закоммитьте исполняемый скрипт в `.claude/hooks/` и запускайте его из `.claude/settings.json` как hook `PreToolUse` с matcher `Edit|Write`, как в уроке 5, чтобы не пускать Claude в samples/.';
     const samples = scripts.map((s) => runCommitted(repo, s, 'samples/guide.md'));
     const source = scripts.map((s) => runCommitted(repo, s, 'src/cli.js'));
-    if ([...samples, ...source].some(missingJq)) return 'A hook needs `jq`, which isn\'t installed. Install it and run the check again.';
-    if (!samples.some((r) => r?.status === 2)) return 'No Edit|Write hook exits with 2 for `samples/guide.md`, so Claude can still edit samples/.';
-    return source.every((r) => r?.status === 0) ? true : 'An Edit|Write hook also blocks `src/cli.js`: block samples/ only.';
+    if ([...samples, ...source].some(missingJq)) return 'Hook нужен `jq`, а он не установлен. Установите его и запустите проверку снова.';
+    if (!samples.some((r) => r?.status === 2)) return 'Ни один hook Edit|Write не завершается кодом 2 для `samples/guide.md`, поэтому Claude всё ещё может править samples/.';
+    return source.every((r) => r?.status === 0) ? true : 'Hook Edit|Write блокирует и `src/cli.js`: блокируйте только samples/.';
   },
 };
 
 // The brief puts the sandbox in the team's committed settings.
 const sandbox = {
-  text: 'the committed `.claude/settings.json` turns the sandbox on, and `.claude/settings.local.json` stays out of git',
+  text: 'закоммиченный `.claude/settings.json` включает песочницу, а `.claude/settings.local.json` не попадает в git',
   check(repo) {
-    if (repo.git('ls-files', '--', '.claude/settings.local.json')) return '.claude/settings.local.json is committed, but it holds your own settings. Run `git rm --cached .claude/settings.local.json`, commit, and add it to `.gitignore`.';
-    return committedSettings(repo)?.sandbox?.enabled === true ? true : 'The committed .claude/settings.json doesn\'t turn the sandbox on. Add `"sandbox": {"enabled": true}` to it and commit: `/sandbox` saves to your local file, which teammates don\'t get.';
+    if (repo.git('ls-files', '--', '.claude/settings.local.json')) return '.claude/settings.local.json закоммичен, но в нём ваши личные настройки. Выполните `git rm --cached .claude/settings.local.json`, закоммитьте и добавьте файл в `.gitignore`.';
+    return committedSettings(repo)?.sandbox?.enabled === true ? true : 'Закоммиченный .claude/settings.json не включает песочницу. Добавьте в него `"sandbox": {"enabled": true}` и закоммитьте: `/sandbox` сохраняет в ваш локальный файл, а коллеги его не получают.';
   },
 };
 

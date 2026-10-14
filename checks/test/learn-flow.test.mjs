@@ -52,7 +52,7 @@ test('questions: a wrong pick explains, a second reveals; s reveals; a guess is 
   d.key('1');
   assert.equal(d.state.beat.status, 'waiting');
   assert.equal(d.state.beat.feedback.kind, 'wrong');
-  assert.match(d.state.beat.feedback.because, /header above the prompt/);
+  assert.match(d.state.beat.feedback.because, /заголовок над строкой ввода/);
   assert.match(d.state.beat.feedback.point, /Login method/);
   d.key('3');
   assert.equal(d.state.beat.status, 'done');
@@ -96,7 +96,7 @@ test('typed answers ignore case, spaces and a leading slash; empty enter shows t
   w.key('enter');
   for (const c of '/usage') w.key(c, c);
   w.key('enter');
-  assert.match(w.state.beat.feedback.because, /session cost/);
+  assert.match(w.state.beat.feedback.because, /стоимость сессии/);
   w.key('enter');
   assert.equal(w.state.beat.revealed, true);
   // q is typed, not quit, while answering.
@@ -116,7 +116,7 @@ test('hints: one rung per press, a 2 second lock, y/n before the exact command, 
   assert.ok(hintAvailable(d.state));
   const rungs = rungsOf(d.state);
   assert.equal(rungs[0].kind, 'ask');
-  assert.match(rungs[0].text, /on its own\?$/, 'the empty-file FAIL gets its own first question');
+  assert.match(rungs[0].text, /если запустить её отдельно\?$/, 'the empty-file FAIL gets its own first question');
   assert.equal(rungs.at(-1).kind, 'bottom');
   d.key('h');
   assert.equal(d.state.beat.rung, 0);
@@ -495,10 +495,10 @@ test('a file check is done once its file holds a line, and a fresh one once it c
   d.key('r');
   d.send({ type: 'file', path: '.practice/b-2-plan.txt', line: null, stamp: 'B' });
   assert.equal(d.state.beat.status, 'fail');
-  assert.match(d.state.beat.fail.hint, /\.practice\/b-2-plan\.txt has no line/);
+  assert.match(d.state.beat.fail.hint, /В \.practice\/b-2-plan\.txt пока нет ни одной строки/);
   d.send({ type: 'file', path: '.practice/b-2-plan.txt', line: 'src/config.js', lines: 2, stamp: 'C' });
   assert.equal(d.state.beat.status, 'done');
-  assert.equal(d.state.beat.evidence, 'src/config.js and 1 more line', 'a list shows how long it is');
+  assert.equal(d.state.beat.evidence, 'src/config.js и ещё 1 строка', 'a list shows how long it is');
 });
 
 test('fresh since: the file is compared with how it was when an earlier step opened', () => {

@@ -37,7 +37,7 @@ export function runCheck(dir, lesson, items, { slow = false } = {}) {
         if (out.error) return resolve({ error: out.error });
         resolve({ items: [...out.items, ...placeholders].sort((a, b) => a.index - b.index) });
       } catch {
-        resolve({ error: error ? (error.killed ? 'it took too long' : error.message.split('\n')[0]) : 'it printed something unexpected' });
+        resolve({ error: error ? (error.killed ? 'проверка шла слишком долго' : error.message.split('\n')[0]) : 'проверка вывела что-то неожиданное' });
       }
     }));
   });
@@ -55,7 +55,7 @@ export function gitStatus(dir) {
 export function gitReady(dir) {
   return new Promise((resolve) => {
     execFile('git', ['rev-parse', '--is-inside-work-tree'], { cwd: dir, env: childEnv(), windowsHide: true, timeout: 30_000 }, (error) => {
-      resolve(error ? (error.code === 'ENOENT' ? 'git is not installed' : 'this folder is not a git repository') : null);
+      resolve(error ? (error.code === 'ENOENT' ? 'git не установлен' : 'эта папка не является репозиторием git') : null);
     });
   });
 }

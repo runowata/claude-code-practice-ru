@@ -1,20 +1,20 @@
-# Brief: get linkcheck ready for a new teammate
+# Задание: подготовить linkcheck для нового коллеги
 
-**From:** the team lead
+**От:** руководителя команды
 
-A new teammate starts on Monday. Set up this repository so their Claude Code sessions work the way ours do, and commit all of it: they get only what's in git.
+В понедельник выходит новый коллега. Настройте этот репозиторий так, чтобы его сессии Claude Code работали так же, как у нас, и закоммитьте всё: он получит только то, что есть в git.
 
-## What we need
+## Что нам нужно
 
-1. **A skill for a job we repeat.** We keep asking Claude to run the link checker on a folder and explain each broken link. Make that a project skill: it should run by name and load on its own when someone asks to check links.
-2. **Keep Claude out of `samples/`.** The tests depend on the exact files there, including the link that's broken on purpose. Add a hook that blocks Claude's Edit and Write tools on anything inside `samples/`, and only there.
-3. **A reviewer that can't change anything.** A subagent that reviews changes before we commit, with read-only tools.
-4. **A browser for the docs.** Chrome DevTools MCP at project scope, pinned to one version, with its usage statistics, CrUX lookups and update checks turned off.
-5. **One official plugin.** Turn on `claude-code-setup` from the official marketplace for everyone in the repository.
-6. **Team settings.** Claude must never read `.env` files. It may run `npm test` without asking. The sandbox is on.
-7. **Project memory.** `CLAUDE.md` pulls in `package.json` with an import, and testing conventions live in a rule scoped to the files under `test/`.
+1. **Skill для повторяющейся работы.** Мы постоянно просим Claude запустить проверку ссылок на папке и объяснить каждую битую ссылку. Сделайте из этого skill проекта: он должен запускаться по имени и подгружаться сам, когда кто-то просит проверить ссылки.
+2. **Не пускать Claude в `samples/`.** Тесты зависят от точных файлов там, включая намеренно битую ссылку. Добавьте hook, который блокирует инструменты Edit и Write для всего внутри `samples/` и только для него.
+3. **Рецензент, который ничего не может изменить.** Субагент, который просматривает изменения перед коммитом, только с инструментами для чтения.
+4. **Браузер для документации.** Chrome DevTools MCP на уровне проекта, закреплённый на одной версии, с отключёнными статистикой использования, запросами к CrUX и проверками обновлений.
+5. **Один официальный плагин.** Включите `claude-code-setup` из официального marketplace для всех в репозитории.
+6. **Настройки команды.** Claude никогда не должен читать файлы `.env`. Он может запускать `npm test` без вопроса. Песочница (sandbox) включена.
+7. **Память проекта.** `CLAUDE.md` подтягивает `package.json` через импорт, а соглашения о тестах лежат в правиле, привязанном к файлам в `test/`.
 
-## Done when
+## Готово, когда
 
-- `npm test` passes and nothing is left uncommitted.
-- `npm run check -- i-capstone` passes.
+- `npm test` проходит и ничего не осталось незакоммиченным.
+- `npm run check -- i-capstone` проходит.

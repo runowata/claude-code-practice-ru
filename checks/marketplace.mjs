@@ -55,7 +55,7 @@ const paths = (run) => {
 export function parseJson(text, { bom = false } = {}) {
   let body = text;
   if (body.startsWith('\uFEFF')) {
-    if (!bom) return { error: 'it starts with a UTF-8 byte-order mark. Save it as UTF-8 without one, and commit.' };
+    if (!bom) return { error: 'он начинается с метки порядка байтов UTF-8. Сохраните его как UTF-8 без неё и закоммитьте.' };
     body = body.slice(1);
   }
   try {
@@ -98,8 +98,8 @@ function ignoreRule(repo, path) {
 // rule that hides `path`, a file in it, if one does.
 export function commitHint(repo, path, what = path) {
   const rule = ignoreRule(repo, path);
-  if (!rule) return `${code(what)} isn't committed. Run \`git add ${shell(what)}\` and commit it.`;
-  return `${code(what)} isn't committed, and line ${rule.line} of ${code(rule.source)}, ${code(rule.pattern)}, ignores it. Run \`git add -f ${shell(what)}\` and commit it.`;
+  if (!rule) return `${code(what)} не закоммичен. Выполните \`git add ${shell(what)}\` и закоммитьте.`;
+  return `${code(what)} не закоммичен, а строка ${rule.line} в ${code(rule.source)}, ${code(rule.pattern)}, его игнорирует. Выполните \`git add -f ${shell(what)}\` и закоммитьте.`;
 }
 
 // The paths matching `pattern`, a glob under any folder, that are in the
@@ -115,13 +115,13 @@ export function uncommittedFiles(repo, pattern) {
 // What is wrong with a marketplace name, as a clause, or null.
 export function nameProblem(name) {
   if (typeof name !== 'string' || !name.trim()) return 'has no `name`';
-  if (!NAME.test(name) || name.includes('..')) return `names the marketplace ${code(name)}, but a marketplace name takes only letters, digits, \`.\`, \`_\` and \`-\`, starts with a letter or digit, and has no \`..\``;
+  if (!NAME.test(name) || name.includes('..')) return `называет marketplace ${code(name)}, но имя marketplace может содержать только буквы, цифры, \`.\`, \`_\` и \`-\`, начинается с буквы или цифры и не содержит \`..\``;
   const lower = name.toLowerCase();
-  if (lower.startsWith('claudeai-')) return `names the marketplace ${code(name)}, but names starting with \`claudeai-\` are reserved for marketplaces hosted on claude.ai`;
+  if (lower.startsWith('claudeai-')) return `называет marketplace ${code(name)}, но имена, начинающиеся с \`claudeai-\`, зарезервированы за marketplace на claude.ai`;
   // Another spelling of a reserved name: a trailing dot, or a dot for a hyphen.
   const spelled = lower.replace(/\.$/, '').replace(/\./g, '-');
   const reserved = RESERVED.has(lower) ? lower : RESERVED.has(spelled) ? spelled : null;
-  if (reserved) return `names the marketplace ${code(name)}, which Claude Code reserves${reserved === lower ? '' : ` as another spelling of ${code(reserved)}`}`;
+  if (reserved) return `называет marketplace ${code(name)}, а это имя зарезервировано в Claude Code${reserved === lower ? '' : ` как другое написание ${code(reserved)}`}`;
   return null;
 }
 
@@ -158,14 +158,14 @@ function reviewEntry(repo, marketplace, entry, index, committed) {
   const label = isObject(entry) && typeof entry.name === 'string' && entry.name ? code(entry.name) : `number ${index + 1}`;
   const where = `The entry ${label} in ${code(marketplace.path)}`;
   if (!isObject(entry)) return { stage: 0, hint: `${where} isn't an object with a \`name\` and a \`source\`.` };
-  if (typeof entry.name !== 'string' || !NAME.test(entry.name)) return { stage: 0, hint: `${where} needs a \`name\` made of letters, digits, \`.\`, \`_\` and \`-\`, starting with a letter or digit.` };
+  if (typeof entry.name !== 'string' || !NAME.test(entry.name)) return { stage: 0, hint: `${where} нужен \`name\` из букв, цифр, \`.\`, \`_\` и \`-\`, начинающийся с буквы или цифры.` };
   const { name, source } = entry;
   const example = `\`"source": "./plugins/${name}"\``;
-  if (isObject(source)) return { stage: 1, hint: `${where} fetches its plugin from ${typeof source.source === 'string' ? `a ${code(source.source)} source` : 'another source'}, which each teammate would have to install. Keep the plugin inside the marketplace folder and list it by a relative path, such as ${example}.` };
-  if (typeof source !== 'string' || !source.trim()) return { stage: 1, hint: `${where} has no \`source\`. List its plugin by a path from the marketplace folder, such as ${example}.` };
-  if (source.includes('\\')) return { stage: 1, hint: `${where} writes its \`source\` with a backslash, ${code(source)}, which Claude Code refuses on macOS and Linux. Use forward slashes, as in ${example}.` };
-  if (source !== '.' && !source.startsWith('./')) return { stage: 1, hint: `${where} has the \`source\` ${code(source)}. A relative path must start with \`./\`: write \`"source": "./${source.replace(/^\/+/, '')}"\`.` };
-  if (source.split('/').includes('..')) return { stage: 1, hint: `${where} has the \`source\` ${code(source)}, whose \`..\` leaves the marketplace folder. Keep the plugin inside that folder and list it as ${example}.` };
+  if (isObject(source)) return { stage: 1, hint: `${where} берёт плагин из ${typeof source.source === 'string' ? `источника ${code(source.source)}` : 'другого источника'}, который пришлось бы устанавливать каждому коллеге. Держите плагин внутри папки marketplace и указывайте его относительным путём, например ${example}.` };
+  if (typeof source !== 'string' || !source.trim()) return { stage: 1, hint: `У ${where} нет \`source\`. Укажите плагин путём от папки marketplace, например ${example}.` };
+  if (source.includes('\\')) return { stage: 1, hint: `${where} пишет \`source\` с обратной косой чертой, ${code(source)}, а Claude Code отвергает такой путь в macOS и Linux. Используйте обычные косые черты, как в ${example}.` };
+  if (source !== '.' && !source.startsWith('./')) return { stage: 1, hint: `У ${where} \`source\` равен ${code(source)}. Относительный путь должен начинаться с \`./\`: напишите \`"source": "./${source.replace(/^\/+/, '')}"\`.` };
+  if (source.split('/').includes('..')) return { stage: 1, hint: `У ${where} \`source\` равен ${code(source)}, и \`..\` выводит за пределы папки marketplace. Держите плагин внутри этой папки и укажите его как ${example}.` };
 
   const dir = folder(inside(marketplace.root, source));
   const manifest = inside(dir, '.claude-plugin/plugin.json');
@@ -173,16 +173,16 @@ function reviewEntry(repo, marketplace, entry, index, committed) {
   if (!committed.has(manifest)) {
     const lists = `${where} lists ${code(`${dir || '.'}/`)}`;
     if (existsSync(join(repo.dir, manifest))) return { stage: 2, ...found, hint: `${lists}, but ${commitHint(repo, manifest, dir || manifest)}` };
-    if (dir && [...committed].some((p) => p.startsWith(`${dir}/`))) return { stage: 2, ...found, hint: `${lists}, which has no \`.claude-plugin/plugin.json\`. A plugin folder needs one, with the plugin's \`name\`: add it and commit.` };
-    return { stage: 2, ...found, hint: `${lists}, where no plugin is committed. Put the plugin there, with its \`.claude-plugin/plugin.json\`, and commit it, or fix the \`source\`.` };
+    if (dir && [...committed].some((p) => p.startsWith(`${dir}/`))) return { stage: 2, ...found, hint: `${lists}, но в ней нет \`.claude-plugin/plugin.json\`. Папке плагина он нужен, с \`name\` плагина: добавьте его и закоммитьте.` };
+    return { stage: 2, ...found, hint: `${lists}, но там не закоммичен ни один плагин. Положите туда плагин вместе с его \`.claude-plugin/plugin.json\` и закоммитьте либо исправьте \`source\`.` };
   }
   const plugin = manifestJson(headText(repo, manifest) ?? '');
-  if (plugin.error) return { stage: 3, ...found, hint: `The committed ${code(manifest)} isn't valid JSON: ${plugin.error}` };
+  if (plugin.error) return { stage: 3, ...found, hint: `Закоммиченный ${code(manifest)} не является корректным JSON: ${plugin.error}` };
   const manifestName = isObject(plugin.value) ? plugin.value.name : undefined;
-  if (typeof manifestName !== 'string' || !manifestName.trim()) return { stage: 3, ...found, hint: `The committed ${code(manifest)} has no \`name\`. Set \`"name": "${name}"\`, the entry's name, and commit.` };
-  if (manifestName !== name) return { stage: 4, ...found, hint: `${where} is named ${code(name)}, but ${code(manifest)} names the plugin ${code(manifestName)}. Use one name in both places, and commit.` };
+  if (typeof manifestName !== 'string' || !manifestName.trim()) return { stage: 3, ...found, hint: `В закоммиченном ${code(manifest)} нет \`name\`. Задайте \`"name": "${name}"\`, имя записи, и закоммитьте.` };
+  if (manifestName !== name) return { stage: 4, ...found, hint: `${where} называется ${code(name)}, а ${code(manifest)} называет плагин ${code(manifestName)}. Используйте одно имя в обоих местах и закоммитьте.` };
   const components = pluginComponents([...committed], dir);
-  if (!componentCount(components)) return { stage: 5, ...found, hint: `The plugin in ${code(`${dir || '.'}/`)} commits no component: no skill in \`skills/<name>/SKILL.md\`, no subagent in \`agents/\` and no \`hooks/hooks.json\`. Add one and commit.` };
+  if (!componentCount(components)) return { stage: 5, ...found, hint: `В плагине из ${code(`${dir || '.'}/`)} не закоммичено ни одного компонента: ни skill в \`skills/<name>/SKILL.md\`, ни субагента в \`agents/\`, ни \`hooks/hooks.json\`. Добавьте один и закоммитьте.` };
   return { stage: 6, ...found, ok: true, components };
 }
 
@@ -194,14 +194,14 @@ function reviewMarketplace(repo, path, committed) {
   const root = folder(posix.dirname(posix.dirname(path)));
   const base = { path, root, entries: [], plugins: [] };
   const parsed = manifestJson(headText(repo, path) ?? '');
-  if (parsed.error) return { ...base, stage: 0, hint: `The committed ${code(path)} isn't valid JSON: ${parsed.error}` };
+  if (parsed.error) return { ...base, stage: 0, hint: `Закоммиченный ${code(path)} не является корректным JSON: ${parsed.error}` };
   const value = parsed.value;
-  if (!isObject(value)) return { ...base, stage: 0, hint: `The committed ${code(path)} isn't a JSON object with a \`name\`, an \`owner\` and a \`plugins\` list.` };
+  if (!isObject(value)) return { ...base, stage: 0, hint: `Закоммиченный ${code(path)} не является JSON-объектом с \`name\`, \`owner\` и списком \`plugins\`.` };
   const named = nameProblem(value.name);
-  if (named) return { ...base, stage: 1, name: value.name, hint: `${code(path)} ${named}. Pick a name of your own, such as \`team-tools\`, and use it under \`extraKnownMarketplaces\` and after the \`@\` in \`enabledPlugins\` too.` };
+  if (named) return { ...base, stage: 1, name: value.name, hint: `${code(path)} ${named}. Выберите своё имя, например \`team-tools\`, и используйте его также в \`extraKnownMarketplaces\` и после \`@\` в \`enabledPlugins\`.` };
   const marketplace = { ...base, name: value.name };
-  if (!isObject(value.owner) || typeof value.owner.name !== 'string' || !value.owner.name.trim()) return { ...marketplace, stage: 2, hint: `${code(path)} needs an \`owner\` with a \`name\`, such as \`"owner": { "name": "Your team" }\`.` };
-  if (!Array.isArray(value.plugins) || !value.plugins.length) return { ...marketplace, stage: 3, hint: `${code(path)} lists no plugins. Add an entry to \`plugins\`, such as \`{ "name": "team-kit", "source": "./plugins/team-kit" }\`.` };
+  if (!isObject(value.owner) || typeof value.owner.name !== 'string' || !value.owner.name.trim()) return { ...marketplace, stage: 2, hint: `${code(path)} нужен \`owner\` с \`name\`, например \`"owner": { "name": "Your team" }\`.` };
+  if (!Array.isArray(value.plugins) || !value.plugins.length) return { ...marketplace, stage: 3, hint: `${code(path)} не перечисляет плагины. Добавьте запись в \`plugins\`, например \`{ "name": "team-kit", "source": "./plugins/team-kit" }\`.` };
   const entries = value.plugins.map((entry, i) => reviewEntry(repo, marketplace, entry, i, committed));
   const best = entries.reduce((a, b) => (b.stage > a.stage ? b : a));
   return { ...marketplace, stage: 4, entry: best.stage, hint: best.hint, entries, plugins: entries.filter((e) => e.ok) };
@@ -228,7 +228,7 @@ export const passingMarketplaces = (repo) => committedMarketplaces(repo).filter(
 
 // Why no committed marketplace passes. `start` says how to make one when
 // there is none, as the page describes it.
-export function marketplaceHint(repo, start = 'Download the example marketplace into `team-marketplace/`, as the Worked example shows') {
+export function marketplaceHint(repo, start = 'Скачайте пример marketplace в `team-marketplace/`, как показано в разборе на примере') {
   const all = committedMarketplaces(repo);
   if (all.length) {
     const rank = (m) => m.stage * 10 + (m.entry ?? 0);
@@ -240,9 +240,9 @@ export function marketplaceHint(repo, start = 'Download the example marketplace 
   if (renamed) {
     const from = posix.dirname(renamed);
     const to = inside(folder(posix.dirname(from)), '.claude-plugin');
-    return `${code(`${from}/`)} isn't a marketplace until it's named \`.claude-plugin/\`: Claude Code reads a marketplace from \`.claude-plugin/marketplace.json\`. Run \`git mv ${shell(from)} ${shell(to)}\` (or \`mv\`, if it isn't committed yet), and commit.`;
+    return `${code(`${from}/`)} не станет marketplace, пока папка не называется \`.claude-plugin/\`: Claude Code читает marketplace из \`.claude-plugin/marketplace.json\`. Выполните \`git mv ${shell(from)} ${shell(to)}\` (или \`mv\`, если она ещё не закоммичена) и закоммитьте.`;
   }
-  return `There is no committed \`.claude-plugin/marketplace.json\`. ${start}, and commit it.`;
+  return `Закоммиченного \`.claude-plugin/marketplace.json\` нет. ${start}, и закоммитьте его.`;
 }
 
 // The committed .claude/settings.json: `{ value }`, `{ error }`, or null when
@@ -261,15 +261,15 @@ function sourceFolder(source, key, marketplace) {
   const label = `\`${key}.${marketplace.name}\``;
   if (!isObject(source)) return { hint: `${label} has no \`source\` object. Write ${BLOCK(marketplace.name, marketplace.root)}.` };
   const type = source.source;
-  if (type !== 'directory' && type !== 'file') return { hint: `${label} registers the marketplace from ${typeof type === 'string' ? `a ${code(type)} source` : 'a source without a type'}. Register the committed folder instead: \`"source": { "source": "directory", "path": "${want}" }\`.` };
+  if (type !== 'directory' && type !== 'file') return { hint: `${label} регистрирует marketplace из ${typeof type === 'string' ? `источника ${code(type)}` : 'источника без типа'}. Зарегистрируйте вместо этого закоммиченную папку: \`"source": { "source": "directory", "path": "${want}" }\`.` };
   const { path } = source;
   const target = type === 'directory' ? want : `${want}/.claude-plugin/marketplace.json`;
   if (typeof path !== 'string' || !path.trim()) return { hint: `${label} has no \`path\`. Write \`"path": "${target}"\`.` };
-  if (/^(?:\/|~|[A-Za-z]:|\\\\)/.test(path)) return { hint: `${label} has the \`path\` ${code(path)}, a path on your machine, which a teammate's clone doesn't have. Write it relative to the repository: \`"path": "${target}"\`.` };
-  if (path.includes('\\')) return { hint: `${label} writes its \`path\` with a backslash, ${code(path)}, which isn't a folder separator on macOS or Linux. Write \`"path": "${target}"\`.` };
-  if (path.split('/').includes('..')) return { hint: `${label} has the \`path\` ${code(path)}, whose \`..\` leaves the repository. Write \`"path": "${target}"\`.` };
+  if (/^(?:\/|~|[A-Za-z]:|\\\\)/.test(path)) return { hint: `У ${label} \`path\` равен ${code(path)}: это путь на вашем компьютере, которого нет в клоне коллеги. Напишите его относительно репозитория: \`"path": "${target}"\`.` };
+  if (path.includes('\\')) return { hint: `${label} пишет \`path\` с обратной косой чертой, ${code(path)}, а в macOS и Linux это не разделитель папок. Напишите \`"path": "${target}"\`.` };
+  if (path.split('/').includes('..')) return { hint: `У ${label} \`path\` равен ${code(path)}, и \`..\` выводит за пределы репозитория. Напишите \`"path": "${target}"\`.` };
   const resolved = type === 'directory' ? folder(path) : folder(path) === inside(marketplace.root, '.claude-plugin/marketplace.json') ? marketplace.root : null;
-  if (resolved !== marketplace.root) return { hint: `${label} has the \`path\` ${code(path)}, but the marketplace is in ${code(marketplace.path)}. Write \`"path": "${target}"\`.` };
+  if (resolved !== marketplace.root) return { hint: `У ${label} \`path\` равен ${code(path)}, а marketplace лежит в ${code(marketplace.path)}. Напишите \`"path": "${target}"\`.` };
   return { dir: resolved };
 }
 
@@ -281,15 +281,15 @@ function reviewRegistration(settings, marketplace) {
   const canonical = own(settings, 'extraKnownMarketplaces');
   const key = canonical ? 'extraKnownMarketplaces' : 'additionalMarketplaces';
   const known = settings[key];
-  if (!isObject(known)) return { stage: 0, hint: `The committed \`${SETTINGS}\` registers no marketplace. Add ${BLOCK(name, root)} and commit.` };
+  if (!isObject(known)) return { stage: 0, hint: `Закоммиченный \`${SETTINGS}\` не регистрирует ни одного marketplace. Добавьте ${BLOCK(name, root)} и закоммитьте.` };
   if (!own(known, name)) {
-    if (canonical && own(settings.additionalMarketplaces, name)) return { stage: 1, hint: `The committed \`${SETTINGS}\` sets both \`extraKnownMarketplaces\` and its other spelling, \`additionalMarketplaces\`, and Claude Code then reads only \`extraKnownMarketplaces\`, so ${code(name)} under \`additionalMarketplaces\` is ignored. Move it into \`extraKnownMarketplaces\` and commit.` };
+    if (canonical && own(settings.additionalMarketplaces, name)) return { stage: 1, hint: `В закоммиченном \`${SETTINGS}\` заданы и \`extraKnownMarketplaces\`, и другое его написание, \`additionalMarketplaces\`; Claude Code тогда читает только \`extraKnownMarketplaces\`, поэтому ${code(name)} в \`additionalMarketplaces\` игнорируется. Перенесите его в \`extraKnownMarketplaces\` и закоммитьте.` };
     const other = Object.keys(known).find((k) => sourceFolder(known[k]?.source, key, { ...marketplace, name: k }).dir === root);
-    if (other !== undefined) return { stage: 1, hint: `\`${key}\` registers the marketplace under the key ${code(other)}, but the key must be the marketplace's \`name\` from ${code(marketplace.path)}, ${code(name)}. Rename the key, and commit.` };
-    return { stage: 1, hint: `\`${key}\` in the committed \`${SETTINGS}\` registers no marketplace named ${code(name)}. Add ${BLOCK(name, root)} and commit.` };
+    if (other !== undefined) return { stage: 1, hint: `\`${key}\` регистрирует marketplace под ключом ${code(other)}, но ключом должно быть \`name\` marketplace из ${code(marketplace.path)}, ${code(name)}. Переименуйте ключ и закоммитьте.` };
+    return { stage: 1, hint: `\`${key}\` в закоммиченном \`${SETTINGS}\` не регистрирует marketplace с именем ${code(name)}. Добавьте ${BLOCK(name, root)} и закоммитьте.` };
   }
   const where = sourceFolder(known[name]?.source, key, marketplace);
-  if (where.hint) return { stage: 2, hint: `${where.hint} Then commit.` };
+  if (where.hint) return { stage: 2, hint: `${where.hint} Затем закоммитьте.` };
   const enabled = isObject(settings.enabledPlugins) ? settings.enabledPlugins : {};
   const ids = marketplace.plugins.map((p) => `${p.name}@${name}`);
   if (ids.some((id) => enabled[id] === true)) return { stage: 4 };
@@ -298,13 +298,13 @@ function reviewRegistration(settings, marketplace) {
   const set = ids.find((i) => own(enabled, i));
   if (set !== undefined) {
     const value = enabled[set];
-    if (value === false) return { stage: 3, hint: `\`enabledPlugins\` in the committed \`${SETTINGS}\` turns ${code(set)} off. Set it to \`true\`, so the plugin is on for everyone, and turn it off for yourself only in \`.claude/settings.local.json\`. Then commit.` };
-    return { stage: 3, hint: `\`enabledPlugins\` sets ${code(set)} to ${code(JSON.stringify(value))}. Use the JSON boolean \`true\`, without quotes, and commit.` };
+    if (value === false) return { stage: 3, hint: `\`enabledPlugins\` в закоммиченном \`${SETTINGS}\` выключает ${code(set)}. Поставьте \`true\`, чтобы плагин был включён у всех, а для себя выключайте его только в \`.claude/settings.local.json\`. Затем закоммитьте.` };
+    return { stage: 3, hint: `\`enabledPlugins\` задаёт для ${code(set)} значение ${code(JSON.stringify(value))}. Поставьте логическое значение JSON \`true\`, без кавычек, и закоммитьте.` };
   }
   const plugins = marketplace.plugins.map((p) => p.name);
   const elsewhere = Object.keys(enabled).find((k) => plugins.includes(k.split('@')[0]) && k.includes('@'));
-  if (elsewhere) return { stage: 3, hint: `\`enabledPlugins\` turns on ${code(elsewhere)}, but the part after \`@\` must be the marketplace's \`name\`, ${code(name)}: write ${code(`"${elsewhere.split('@')[0]}@${name}": true`)}, and commit.` };
-  return { stage: 3, hint: `The committed \`${SETTINGS}\` registers ${code(name)} but turns none of its plugins on. Add ${add} and commit.` };
+  if (elsewhere) return { stage: 3, hint: `\`enabledPlugins\` включает ${code(elsewhere)}, но часть после \`@\` должна быть \`name\` marketplace, ${code(name)}: напишите ${code(`"${elsewhere.split('@')[0]}@${name}": true`)} и закоммитьте.` };
+  return { stage: 3, hint: `Закоммиченный \`${SETTINGS}\` регистрирует ${code(name)}, но не включает ни одного его плагина. Добавьте ${add} и закоммитьте.` };
 }
 
 // Whether settings register one of `marketplaces` by a relative path and turn

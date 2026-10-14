@@ -57,7 +57,7 @@ test('the check child gives the check\'s own words, with npm run check\'s pass r
     assert.equal(none.out.items[0].pass, false);
     assert.equal(none.out.items[0].hint, lessons['b-1'].items[0].check({ dir, read: () => null }));
     write(dir, { '.practice/version.txt': '' });
-    assert.match(child(['b-1', dir, '0']).out.items[0].hint, /is empty/);
+    assert.match(child(['b-1', dir, '0']).out.items[0].hint, /пуст/);
     // Windows PowerShell 5.1 writes UTF-16 with a byte-order mark.
     writeFileSync(join(dir, '.practice', 'version.txt'), Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from('2.1.285 (Claude Code)\r\n', 'utf16le')]));
     assert.equal(child(['b-1', dir]).out.items[0].pass, true);
@@ -190,20 +190,20 @@ test('a full run on a fake terminal: writing version.txt turns step 3 done, and 
   let exited = null;
   main({ stdin: term.stdin, stdout: term.stdout, env: { ...process.env, CODESPACES: '' }, platform: 'linux', root: dir, exit: (code) => { exited = code; } });
   try {
-    assert.ok(await until(() => term.lastFrame().includes("Let's learn Claude Code")), term.lastFrame());
+    assert.ok(await until(() => term.lastFrame().includes('Давайте учить Claude Code')), term.lastFrame());
     term.type('\r');
-    assert.ok(await until(() => term.lastFrame().includes("You'll be able to")));
+    assert.ok(await until(() => term.lastFrame().includes('После урока вы сможете')));
     term.type('\r');
-    assert.ok(await until(() => term.lastFrame().includes('step 1 of 12')));
+    assert.ok(await until(() => term.lastFrame().includes('шаг 1 из 12')));
     term.type(' ');
-    assert.ok(await until(() => term.lastFrame().includes('step 2 of 12')));
+    assert.ok(await until(() => term.lastFrame().includes('шаг 2 из 12')));
     term.type('1');
     term.type('\r');
-    assert.ok(await until(() => term.lastFrame().includes('Watching .practice/version.txt')), term.lastFrame());
+    assert.ok(await until(() => term.lastFrame().includes('Слежу за .practice/version.txt')), term.lastFrame());
     mkdirSync(join(dir, '.practice'));
     writeFileSync(join(dir, '.practice', 'version.txt'), '2.1.285 (Claude Code)\n');
-    assert.ok(await until(() => term.lastFrame().includes('Step 3 done!')), term.lastFrame());
-    assert.match(term.lastFrame(), /DONE/);
+    assert.ok(await until(() => term.lastFrame().includes('Шаг 3 пройден!')), term.lastFrame());
+    assert.match(term.lastFrame(), /ГОТОВО/);
     term.type('q');
     assert.ok(await until(() => exited === 0));
     assert.ok(existsSync(join(dir, '.practice', 'learn.json')));
@@ -224,11 +224,11 @@ test('a save that fails shows a note and the app keeps going', async () => {
   let exited = null;
   main({ stdin: term.stdin, stdout: term.stdout, env: { ...process.env, CODESPACES: '' }, platform: 'linux', root: dir, exit: (code) => { exited = code; } });
   try {
-    assert.ok(await until(() => term.lastFrame().includes("Let's learn Claude Code")));
+    assert.ok(await until(() => term.lastFrame().includes('Давайте учить Claude Code')));
     term.type('\r');
-    assert.ok(await until(() => term.lastFrame().includes("Couldn't save your place")), term.lastFrame());
+    assert.ok(await until(() => term.lastFrame().includes('Не удалось сохранить место')), term.lastFrame());
     term.type('\r');
-    assert.ok(await until(() => term.lastFrame().includes('step 1 of 12')), 'the lesson goes on');
+    assert.ok(await until(() => term.lastFrame().includes('шаг 1 из 12')), 'the lesson goes on');
     assert.equal(exited, null);
     term.type('\x03');
     assert.ok(await until(() => exited === 0));

@@ -10,15 +10,15 @@ import { join, posix } from 'node:path';
 import { planPaths } from '../paths.mjs';
 import { findWorkflows, readWorkflow, STAGES } from '../workflow-script.mjs';
 
-export const title = 'Run and save a dynamic workflow';
+export const title = 'Запустите и сохраните dynamic workflow';
 
 const REPORTS = ['.practice/a-3-run1.md', '.practice/a-3-run2.md'];
 const TODO = /\b(TODO|FIXME)\b/i;
 
-const and = (list) => (list.length > 1 ? `${list.slice(0, -1).join(', ')} and ${list.at(-1)}` : list[0]);
+const and = (list) => (list.length > 1 ? `${list.slice(0, -1).join(', ')} и ${list.at(-1)}` : list[0]);
 const code = (text) => `\`${text}\``;
 const shell = (path) => (/\s/.test(path) ? `"${path}"` : path);
-const SAVE = 'When a workflow run finishes, run `/workflows`, select the run, press `s`, keep the project location, `.claude/workflows/`, and press `Enter`. Then commit the `.js` file it saves.';
+const SAVE = 'Когда запуск workflow закончится, выполните `/workflows`, выберите запуск, нажмите `s`, оставьте расположение проекта `.claude/workflows/` и нажмите `Enter`. Затем закоммитьте сохранённый `.js`-файл.';
 
 // Where a misplaced script should go: a .js file directly in the
 // .claude/workflows/ folder it sits under.
@@ -30,50 +30,50 @@ function placed(path) {
 function scriptHint({ path, result, changed }) {
   const p = code(path);
   const hint = {
-    first: () => `${p} doesn't start with \`export const meta\`${result.found ? `: its code starts with ${code(result.found)}` : ''}. Claude Code needs \`export const meta = { ... }\` as the script's first statement. Move it to the top (comments may stay above it) and commit.`,
-    literal: () => `Line ${result.line} of ${p}: \`meta\` holds ${result.what}. When \`meta\` holds anything but literal values, Claude Code drops \`/<name>\` from \`/\` autocomplete. Write each value out as a string, number, list or object, and commit.`,
-    fields: () => `\`meta\` in ${p} needs ${result.missing.map((f) => `a non-empty \`${f}\` string`).join(' and ')}. Add ${result.missing.length > 1 ? 'them' : 'it'} and commit.`,
-    compile: () => `${p} doesn't compile${result.line ? ` (line ${result.line})` : ''}: ${result.message}. Fix it, or ask Claude to, and commit.`,
+    first: () => `${p} не начинается с \`export const meta\`${result.found ? `: код начинается с ${code(result.found)}` : ''}. Claude Code требует, чтобы \`export const meta = { ... }\` был первым оператором скрипта. Перенесите его наверх (комментарии могут остаться выше) и закоммитьте.`,
+    literal: () => `Строка ${result.line} файла ${p}: \`meta\` содержит ${result.what}. Если в \`meta\` не только литеральные значения, Claude Code убирает \`/<name>\` из автодополнения \`/\`. Запишите каждое значение как строку, число, список или объект и закоммитьте.`,
+    fields: () => `В \`meta\` файла ${p} нужн${result.missing.length > 1 ? 'ы' : 'а'} ${result.missing.map((f) => `непустая строка \`${f}\``).join(' и ')}. Добавьте ${result.missing.length > 1 ? 'их' : 'её'} и закоммитьте.`,
+    compile: () => `${p} не компилируется${result.line ? ` (строка ${result.line})` : ''}: ${result.message}. Исправьте это сами или попросите Claude и закоммитьте.`,
     args: () => {
       const why = result.declared
-        ? `Line ${result.declared} of ${p} declares its own \`args\`, which hides the input Claude passes to the workflow.`
+        ? `В строке ${result.declared} файла ${p} объявлен собственный \`args\`, который скрывает входные данные, передаваемые workflow.`
         : result.mentioned
-          ? `${p} mentions \`args\` only in a comment, a string or a property name, so it never reads its input.`
-          : `${p} never reads \`args\`, so it can't take a folder as input.`;
-      return `${why} Run \`/workflow-authoring\`, ask Claude to change the script so it reads the folder from \`args\`, run \`/reload-skills\`, and commit.`;
+          ? `${p} упоминает \`args\` только в комментарии, строке или имени свойства, поэтому входные данные не читает.`
+          : `${p} нигде не читает \`args\`, поэтому не может принять папку на вход.`;
+      return `${why} Выполните \`/workflow-authoring\`, попросите Claude изменить скрипт так, чтобы он читал папку из \`args\`, выполните \`/reload-skills\` и закоммитьте.`;
     },
-    agent: () => `${p} never calls \`agent()\`, so it starts no subagent. Have Claude write the workflow for the task again, save the run from \`/workflows\`, and commit.`,
+    agent: () => `${p} нигде не вызывает \`agent()\`, поэтому не запускает ни одного субагента. Пусть Claude снова напишет workflow для задачи, сохраните запуск из \`/workflows\` и закоммитьте.`,
   }[result.problem]();
-  const pending = changed ? ` Your copy of ${p} has changes that aren't committed: if they fix this, commit them.` : '';
+  const pending = changed ? ` В вашей копии ${p} есть незакоммиченные изменения: если они это исправляют, закоммитьте их.` : '';
   return `${hint}${pending}`;
 }
 
 function uncommittedHint({ path, rule }) {
-  if (!rule) return `${code(path)} isn't committed. Run \`git add ${shell(path)}\` and commit it.`;
-  return `${code(path)} isn't committed, and line ${rule.line} of ${code(rule.source)}, ${code(rule.pattern)}, ignores it. Run \`git add -f ${shell(path)}\` and commit it.`;
+  if (!rule) return `${code(path)} не закоммичен. Выполните \`git add ${shell(path)}\` и закоммитьте его.`;
+  return `${code(path)} не закоммичен, а строка ${rule.line} файла ${code(rule.source)}, ${code(rule.pattern)}, его игнорирует. Выполните \`git add -f ${shell(path)}\` и закоммитьте его.`;
 }
 
 // The script item. Options as readWorkflow takes them: `needArgs`, the script
 // reads its input from `args`; `needAgentCall`, it starts subagents.
 export function savedWorkflow(options = {}) {
-  const needs = [options.needArgs && 'reads its input from `args`', options.needAgentCall && 'starts subagents with `agent()`'].filter(Boolean);
+  const needs = [options.needArgs && 'читает входные данные из `args`', options.needAgentCall && 'запускает субагентов через `agent()`'].filter(Boolean);
   return {
-    text: `a committed script in \`.claude/workflows/\` has a literal \`export const meta\`, with a \`name\` and a \`description\`, as its first statement${needs.length ? `, and ${and(needs)}` : ''}`,
+    text: `закоммиченный скрипт в \`.claude/workflows/\` начинается с литерального \`export const meta\` с полями \`name\` и \`description\`${needs.length ? ` и ${and(needs)}` : ''}`,
     check(repo) {
       const { scripts, misplaced, uncommitted } = findWorkflows(repo);
       const results = scripts.map((s) => ({ ...s, result: readWorkflow(s.text, options) }));
       if (results.some((r) => r.result.ok)) return true;
       if (results.length) {
         const rank = (r) => STAGES.indexOf(r.result.problem);
-        const other = uncommitted.length ? ` Also, ${uncommittedHint(uncommitted[0])}` : '';
+        const other = uncommitted.length ? ` Кроме того: ${uncommittedHint(uncommitted[0])}` : '';
         return `${scriptHint(results.reduce((best, r) => (rank(r) > rank(best) ? r : best)))}${other}`;
       }
       if (misplaced.length) {
         const [path] = misplaced;
-        return `${code(path)} is under \`.claude/workflows/\`, but the check reads only \`.js\` files directly in that folder, where \`/workflows\` saves them. Move it to ${code(placed(path))} and commit.`;
+        return `${code(path)} лежит в \`.claude/workflows/\`, но проверка читает только \`.js\`-файлы прямо в этой папке, куда их сохраняет \`/workflows\`. Переместите его в ${code(placed(path))} и закоммитьте.`;
       }
       if (uncommitted.length) return uncommittedHint(uncommitted[0]);
-      return `There is no workflow script in \`.claude/workflows/\`. ${SAVE}`;
+      return `В \`.claude/workflows/\` нет скрипта workflow. ${SAVE}`;
     },
   };
 }
@@ -155,34 +155,34 @@ function readReport(repo, path) {
 }
 
 const inside = (path, folder) => path.startsWith(`${folder}/`);
-const some = (list) => `${and(list.slice(0, 3).map(code))}${list.length > 3 ? ` and ${list.length - 3} more` : ''}`;
+const some = (list) => `${and(list.slice(0, 3).map(code))}${list.length > 3 ? ` и ещё ${list.length - 3}` : ''}`;
 
 export const twoFolderReports = {
-  text: '`.practice/a-3-run1.md` and `.practice/a-3-run2.md` name two different folders on their first lines, and each cites at least one `path:line` inside its folder',
+  text: '`.practice/a-3-run1.md` и `.practice/a-3-run2.md` называют в первых строках две разные папки, и каждый ссылается хотя бы на один `path:line` внутри своей папки',
   local: true,
   check(repo) {
     const reports = REPORTS.map((path) => readReport(repo, path));
     const missing = reports.filter((r) => r.text === null);
-    if (missing.length === 2) return `There are no reports yet. Run your saved workflow by name on a folder, then ask Claude to save the report to \`${REPORTS[0]}\` with the folder on its first line. Do the same on a second folder for \`${REPORTS[1]}\`.`;
+    if (missing.length === 2) return `Отчётов пока нет. Запустите сохранённый workflow по имени на какой-нибудь папке и попросите Claude сохранить отчёт в \`${REPORTS[0]}\`, указав папку в первой строке. То же сделайте на второй папке для \`${REPORTS[1]}\`.`;
     const problems = [];
     for (const r of reports) {
-      if (r.text === null) problems.push(`There is no ${code(r.path)}. Run your saved workflow by name on a different folder, then ask Claude to save that report there, with the folder on its first line.`);
-      else if (!r.first) problems.push(`${code(r.path)} is empty. Ask Claude to save the report there again, with the folder on its first line.`);
-      else if (r.root) problems.push(`The first line of ${code(r.path)} names the repository's root. Run the workflow on a folder inside it, and put that folder on the first line.`);
-      else if (!r.folder) problems.push(`The first line of ${code(r.path)}, "${r.first.length > 60 ? `${r.first.slice(0, 60)}...` : r.first}", names no folder in this repository. Put the folder you ran the workflow on, such as \`src\`, on the first line, as a path from the repository's root.`);
+      if (r.text === null) problems.push(`Нет файла ${code(r.path)}. Запустите сохранённый workflow по имени на другой папке и попросите Claude сохранить отчёт туда, указав папку в первой строке.`);
+      else if (!r.first) problems.push(`${code(r.path)} пуст. Попросите Claude сохранить отчёт туда заново, указав папку в первой строке.`);
+      else if (r.root) problems.push(`В первой строке ${code(r.path)} указан корень репозитория. Запустите workflow на папке внутри него и напишите эту папку в первой строке.`);
+      else if (!r.folder) problems.push(`Первая строка ${code(r.path)}, «${r.first.length > 60 ? `${r.first.slice(0, 60)}...` : r.first}», не называет ни одной папки этого репозитория. Напишите в первой строке папку, на которой вы запускали workflow, например \`src\`, как путь от корня репозитория.`);
     }
     const [a, b] = reports;
-    if (a.folder && a.folder === b.folder) problems.push(`Both reports name ${code(a.folder)}. Run your saved workflow on a second, different folder, and save that report as \`${REPORTS[1]}\`.`);
+    if (a.folder && a.folder === b.folder) problems.push(`Оба отчёта называют ${code(a.folder)}. Запустите сохранённый workflow на второй, другой папке и сохраните этот отчёт как \`${REPORTS[1]}\`.`);
     for (const r of reports.filter((x) => x.folder)) {
       const outside = r.cites.filter((c) => c.path && isFile(repo.dir, c.path) && !inside(c.path, r.folder)).map((c) => c.cited);
       const within = r.cites.filter((c) => c.path && inside(c.path, r.folder));
       const fromFolder = r.cites.find((c) => c.path && !isFile(repo.dir, c.path) && isFile(repo.dir, `${r.folder}/${c.path}`));
       if (outside.length) {
-        problems.push(`${code(r.path)} cites ${some(outside)}, outside ${code(`${r.folder}/`)}, the folder on its first line. Check that the workflow reads the folder from \`args\` and reports only on files inside it, then run it again.`);
+        problems.push(`${code(r.path)} ссылается на ${some(outside)} — за пределами ${code(`${r.folder}/`)}, папки из первой строки. Проверьте, что workflow читает папку из \`args\` и сообщает только о файлах внутри неё, и запустите его снова.`);
       } else if (!within.length && fromFolder) {
-        problems.push(`${code(r.path)} cites ${code(fromFolder.raw)}, a path from inside ${code(`${r.folder}/`)}. Each \`path:line\` must start at the repository's root, as ${code(`${r.folder}/${fromFolder.path}:${fromFolder.line}`)} does: start \`claude\` at the root, or ask Claude to write the paths from there, and run the workflow again.`);
+        problems.push(`${code(r.path)} ссылается на ${code(fromFolder.raw)} — путь изнутри ${code(`${r.folder}/`)}. Каждый \`path:line\` должен начинаться от корня репозитория, как ${code(`${r.folder}/${fromFolder.path}:${fromFolder.line}`)}: запустите \`claude\` из корня или попросите Claude писать пути от него и снова запустите workflow.`);
       } else if (!within.length) {
-        problems.push(`${code(r.path)} cites no \`path:line\`${r.cites.length ? ` inside ${code(`${r.folder}/`)}` : ''}. Each item the workflow reports needs one, from the repository's root, such as ${code(`${r.folder}/<file>:<line>`)}.`);
+        problems.push(`В ${code(r.path)} нет ссылок \`path:line\`${r.cites.length ? ` внутри ${code(`${r.folder}/`)}` : ''}. Каждый пункт отчёта workflow должен иметь такую ссылку от корня репозитория, например ${code(`${r.folder}/<file>:<line>`)}.`);
       }
     }
     return problems.length ? problems.join(' ') : true;
@@ -198,32 +198,32 @@ function lines(repo, path) {
 }
 
 export const citedTodos = {
-  text: 'every cited `path:line` exists and holds `TODO` or `FIXME`',
+  text: 'каждый указанный `path:line` существует и содержит `TODO` или `FIXME`',
   local: true,
   check(repo) {
     const reports = REPORTS.map((path) => readReport(repo, path)).filter((r) => r.text !== null && r.first);
-    if (!reports.length) return 'There are no reports to read yet. Save them as the item above says.';
+    if (!reports.length) return 'Отчётов для чтения пока нет. Сохраните их, как сказано в пункте выше.';
     const seen = new Map();
     for (const r of reports) for (const c of r.cites) if (!seen.has(c.cited)) seen.set(c.cited, { ...c, folder: r.folder });
-    if (!seen.size) return 'The reports cite no `path:line`. Each item the workflow reports needs one, from the repository\'s root, such as `src/a.js:12`.';
+    if (!seen.size) return 'В отчётах нет ссылок `path:line`. Каждый пункт отчёта workflow должен иметь такую ссылку от корня репозитория, например `src/a.js:12`.';
     const failures = [];
     for (const c of seen.values()) {
       if (!c.path) {
-        failures.push(`${code(c.raw)} names no file in this repository`);
+        failures.push(`${code(c.raw)} не указывает на файл этого репозитория`);
       } else if (!isFile(repo.dir, c.path)) {
         const nested = c.folder && isFile(repo.dir, `${c.folder}/${c.path}`);
-        failures.push(nested ? `${code(c.raw)} is a path from inside ${code(`${c.folder}/`)}; from the root it's ${code(`${c.folder}/${c.path}:${c.line}`)}` : `there is no ${code(c.path)} for ${code(c.cited)}`);
+        failures.push(nested ? `${code(c.raw)} — путь изнутри ${code(`${c.folder}/`)}; от корня это ${code(`${c.folder}/${c.path}:${c.line}`)}` : `нет ${code(c.path)} для ${code(c.cited)}`);
       } else {
         const text = lines(repo, c.path);
-        if (c.line < 1) failures.push(`${code(c.cited)} names line 0, but lines start at 1`);
-        else if (c.line > text.length) failures.push(`${code(c.cited)} is past the end of ${code(c.path)}, which has ${text.length} line${text.length === 1 ? '' : 's'}`);
-        else if (!TODO.test(text[c.line - 1])) failures.push(`${code(c.cited)} holds no \`TODO\` or \`FIXME\``);
+        if (c.line < 1) failures.push(`${code(c.cited)} указывает на строку 0, а строки считаются с 1`);
+        else if (c.line > text.length) failures.push(`${code(c.cited)} за концом файла ${code(c.path)}, в котором строк: ${text.length}`);
+        else if (!TODO.test(text[c.line - 1])) failures.push(`в ${code(c.cited)} нет \`TODO\` или \`FIXME\``);
       }
     }
     if (!failures.length) return true;
     const shown = failures.slice(0, 3).join('; ');
-    const more = failures.length > 3 ? `; and ${failures.length - 3} more` : '';
-    return `${shown.charAt(0).toUpperCase()}${shown.slice(1)}${more}. If the code changed after the run, run the workflow again and save a new report. If a report cites other lines in its reasons, ask Claude to cite only the \`TODO\` and \`FIXME\` lines.`;
+    const more = failures.length > 3 ? `; и ещё ${failures.length - 3}` : '';
+    return `${shown.charAt(0).toUpperCase()}${shown.slice(1)}${more}. Если код изменился после запуска, запустите workflow снова и сохраните новый отчёт. Если отчёт ссылается на другие строки в рассуждениях, попросите Claude ссылаться только на строки с \`TODO\` и \`FIXME\`.`;
   },
 };
 

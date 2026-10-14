@@ -1,78 +1,78 @@
 # Claude Code practice
 
-The practice repository for [Claude Code: Everything You Need to Know](https://github.com/wesammustafa/Claude-Code-Everything-You-Need-to-Know). The lessons live in the guide; this repository holds the small app you practice on and a check for every core lesson and capstone.
+Репозиторий для практики к руководству [Claude Code: Everything You Need to Know](https://github.com/wesammustafa/Claude-Code-Everything-You-Need-to-Know). Уроки лежат в руководстве; в этом репозитории находятся небольшое приложение, на котором вы тренируетесь, и проверка для каждого основного урока и итогового проекта.
 
 <p align="center">
   <!-- Captured from the learning app at template commit 92d427f on 2026-10-11. -->
-  <img src=".github/readme/learn-lesson-complete.png" width="640" alt="Each finished lesson lists what you can now do. After Beginner lesson 1: install Claude Code, sign in, start it in a repository, and tell which version, model and account a session is using, plus a new badge, Explorer." />
+  <img src=".github/readme/learn-lesson-complete.png" width="640" alt="Каждый пройденный урок перечисляет, что вы теперь умеете. После урока 1 начального уровня: установить Claude Code, войти, запустить его в репозитории и понять, какие версия, модель и аккаунт используются в сессии, плюс новый значок Explorer." />
   <br />
-  <sub>The learning app, <code>npm run learn</code>, at the end of Beginner lesson 1.</sub>
+  <sub>Учебное приложение, <code>npm run learn</code>, в конце урока 1 начального уровня.</sub>
 </p>
 
-## Start
+## Старт
 
-1. Select **Use this template** > **Create a new repository** to make your own copy, then clone it.
-2. Or open your copy in a Codespace: Node.js, Claude Code and the sandbox's dependencies come preinstalled.
+1. Нажмите **Use this template** > **Create a new repository**, чтобы сделать свою копию, и клонируйте её.
+2. Либо откройте свою копию в Codespace: Node.js, Claude Code и зависимости песочницы (sandbox) уже установлены.
 
-You need Node.js LTS and git. There is nothing to install with npm: the app and its checks use only Node.js itself.
+Нужны Node.js LTS и git. Через npm ничего устанавливать не надо: приложению и проверкам хватает самого Node.js.
 
-## Learn step by step
+## Учитесь шаг за шагом
 
-Run the learning app in one terminal, and use Claude Code in a second terminal beside it:
+Запустите учебное приложение в одном терминале, а Claude Code используйте во втором терминале рядом:
 
 ```bash
 npm run learn
 ```
 
-It shows one step of a lesson at a time, watches your copy, and turns a step green as soon as your work is there. The help shrinks as you go: every command at first, then hints, then only the goal. Every Beginner lesson and the capstone are in the app. From lesson 2 on, each opens with two warm-up questions from earlier lessons, and starts with less help than the one before.
+Оно показывает по одному шагу урока, следит за вашей копией и зеленеет, как только ваша работа на месте. Подсказок становится меньше по ходу дела: сначала каждая команда, потом подсказки, потом только цель. В приложении есть все уроки начального уровня и итоговый проект. Начиная с урока 2, каждый урок открывается двумя разминочными вопросами из прошлых уроков и начинается с меньшим числом подсказок, чем предыдущий.
 
-- Keys: arrows or numbers to choose, `enter` to go on, `h` for a hint, `m` for the map of lessons, `q` to quit. Your place is saved in `.practice/learn.json`.
-- If PowerShell refuses to run `npm`, run `npm.cmd run learn`.
-- Odd symbols or colors? Set `LEARN_PLAIN=1` (in PowerShell, `$env:LEARN_PLAIN=1`) before `npm run learn`. The app also follows `NO_COLOR`.
-- The app has no AI in it and changes none of your work: it reads your files, runs `git status` and the lesson's check, and writes only its own file.
+- Клавиши: стрелки или цифры, чтобы выбирать, `enter`, чтобы идти дальше, `h` для подсказки, `m` для карты уроков, `q`, чтобы выйти. Ваше место сохраняется в `.practice/learn.json`.
+- Если PowerShell отказывается запускать `npm`, выполните `npm.cmd run learn`.
+- Странные символы или цвета? Задайте `LEARN_PLAIN=1` (в PowerShell: `$env:LEARN_PLAIN=1`) перед `npm run learn`. Приложение также учитывает `NO_COLOR`.
+- В приложении нет ИИ, и оно не меняет вашу работу: оно читает ваши файлы, запускает `git status` и проверку урока и записывает только свой собственный файл.
 
-## Check your work
+## Проверьте свою работу
 
-Each core lesson and each capstone ends with a check. Run it from the root of your copy:
+Каждый основной урок и каждый итоговый проект заканчивается проверкой. Запускайте её из корня своей копии:
 
 ```bash
 npm run check -- b-1
 ```
 
-Each item prints `PASS` or `FAIL`, with a hint for what to fix. To check a lesson you did in one of your own repositories, run the same command from your copy with `--dir` and the path to that repository, relative to your copy or in full. Here it is a folder next to your copy:
+Каждый пункт печатает `PASS` или `FAIL` с подсказкой, что исправить. Чтобы проверить урок, выполненный в одном из ваших собственных репозиториев, выполните ту же команду из своей копии с `--dir` и путём к этому репозиторию, относительным от вашей копии или полным. Здесь это папка рядом с вашей копией:
 
 ```bash
 npm run check -- b-1 --dir ../my-project
 ```
 
-Some items read a file you save under `.practice/`, for state that exists only for a moment, such as a plan before you approve it. Git ignores that folder, so those items are checked on your machine only.
+Некоторые пункты читают файл, который вы сохраняете в `.practice/`, для состояния, существующего лишь мгновение, например план до его одобрения. Git игнорирует эту папку, поэтому такие пункты проверяются только на вашем компьютере.
 
-## Track your progress
+## Следите за прогрессом
 
-- Every push runs the **Progress** workflow, which lists each check's result in the run's summary. It never fails: an exercise you have not finished shows as "not yet", and items that read `.practice/` show as "checked locally".
-- Open an issue from the **Track my progress** template for a checklist of every lesson and capstone.
-- The `solutions` branch of [the template](https://github.com/wesammustafa/claude-code-practice) holds a reference solution for every check. Read it after an honest attempt.
+- Каждый push запускает workflow **Progress**, который выводит результат каждой проверки в сводке запуска. Он никогда не падает: незавершённое упражнение отображается как «пока нет», а пункты, читающие `.practice/`, как «проверено локально».
+- Откройте issue по шаблону **Track my progress**, чтобы получить чек-лист по каждому уроку и итоговому проекту.
+- В ветке `solutions` [шаблона](https://github.com/wesammustafa/claude-code-practice) лежит эталонное решение для каждой проверки. Читайте его после честной попытки.
 
-## The app
+## Приложение
 
-A small Markdown link checker. It reports relative links whose file is missing:
+Небольшая программа для проверки ссылок в Markdown. Она сообщает об относительных ссылках, файл которых отсутствует:
 
 ```bash
 npm run linkcheck -- samples
 npm test
 ```
 
-The app is `src/`, `test/` and `samples/`. The rest belongs to the course: `checks/` holds the checks, `learn/` the step-by-step learning app, `capstone/` the capstone briefs, and `.github/` the workflows. The **Assert checks** workflow does its work only in the template repository: in your copy its job is skipped, which GitHub shows as a skipped check, so you can commit your exercises on any branch, `main` included.
+Приложение — это `src/`, `test/` и `samples/`. Остальное относится к курсу: в `checks/` лежат проверки, в `learn/` — пошаговое учебное приложение, в `capstone/` — задания итоговых проектов, в `.github/` — workflows. Workflow **Assert checks** работает только в репозитории шаблона: в вашей копии его задание пропускается, и GitHub показывает это как пропущенную проверку, так что вы можете коммитить упражнения в любую ветку, включая `main`.
 
-## In a Codespace
+## В Codespace
 
-- The Claude Code Dev Container Feature always installs the latest Claude Code release ([Dev containers](https://code.claude.com/docs/en/devcontainer)). The guide is checked against the `stable` release, which is the same or older, so the lessons still apply.
-- If the browser sign-in finishes but the terminal keeps waiting, copy the code the browser shows and paste it at the `Paste code here if prompted` prompt ([Dev containers](https://code.claude.com/docs/en/devcontainer)).
-- If sandboxed commands fail with `Can't mount proc on /newroot/proc: Operation not permitted`, the container is blocking the sandbox's own `/proc` mount. Setting `sandbox.enableWeakerNestedSandbox` to `true` works around it, but use it only when the container already provides the isolation you need ([Sandboxing](https://code.claude.com/docs/en/sandboxing)).
-- Codespaces compute time counts against your GitHub account's included usage ([Codespaces billing](https://docs.github.com/en/billing/concepts/product-billing/github-codespaces)).
+- Dev Container Feature для Claude Code всегда устанавливает последнюю версию Claude Code ([Dev containers](https://code.claude.com/docs/en/devcontainer)). Руководство проверено на релизе `stable`, который совпадает с ней или старше, так что уроки по-прежнему применимы.
+- Если вход через браузер завершился, а терминал всё ещё ждёт, скопируйте код, который показывает браузер, и вставьте его на запрос `Paste code here if prompted` ([Dev containers](https://code.claude.com/docs/en/devcontainer)).
+- Если команды в песочнице падают с `Can't mount proc on /newroot/proc: Operation not permitted`, контейнер блокирует собственное монтирование `/proc` песочницы. Обойти это можно, задав `sandbox.enableWeakerNestedSandbox` значение `true`, но делайте так, только когда контейнер уже обеспечивает нужную вам изоляцию ([Sandboxing](https://code.claude.com/docs/en/sandboxing)).
+- Время вычислений в Codespaces учитывается в включённом лимите вашего аккаунта GitHub ([Codespaces billing](https://docs.github.com/en/billing/concepts/product-billing/github-codespaces)).
 
-## License
+## Лицензия
 
-MIT. See [LICENSE](LICENSE). Claude Code is a product of Anthropic; this is an independent community project, not affiliated with or endorsed by Anthropic.
+MIT. См. [LICENSE](LICENSE). Claude Code — продукт Anthropic; это независимый проект сообщества, не связанный с Anthropic и не одобренный ею.
 
 Sources: [Dev containers](https://code.claude.com/docs/en/devcontainer), [Sandboxing](https://code.claude.com/docs/en/sandboxing), [Codespaces billing](https://docs.github.com/en/billing/concepts/product-billing/github-codespaces)

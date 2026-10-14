@@ -29,14 +29,14 @@ const REMOVED = ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'CLAUDE_CODE_OAUTH
 // Ways a script could call the real Claude Code. Whole-line comments are
 // skipped before these are tested.
 const REACHES = [
-  [/(?:^|[\s;&|(`$])(npx|bunx|pnpx)\s+(?:-\S+\s+)*(?:@anthropic-ai\/claude-code|claude)\b/m, (m) => `runs Claude Code through \`${m[1]}\``],
-  [/@anthropic-ai\/claude-code/, () => 'names the `@anthropic-ai/claude-code` package'],
-  [/[^\s'"`=;|&(){}<>]*\/claude(?:\.exe)?(?=$|[\s'"`;|&)])/m, (m) => `calls Claude Code by its path, \`${m[0]}\``],
-  [/(?:^|[\s;&|(`$'"])claude\.exe\b/m, () => 'calls `claude.exe`'],
-  [/(?:^|[\s;&|({`])(?:(?:export|declare|typeset|local|readonly)\s+(?:-\w+\s+)*)?PATH\+?=/m, () => 'changes `PATH`'],
-  [/(?:^|[\s;&|(`$'"])(?:[\w./-]*\/)?(?:ba|da|k|z|fi)?sh\s+(?:-[A-Za-z]*\s+|--[\w-]+\s+)*?(?:-[A-Za-z]*l[A-Za-z]*|--login)(?=$|[\s'"`;|&)])/m, () => 'starts a login shell, with `-l` or `--login`'],
-  [/(?:^|[\s;&|(`])(?:\.|source)\s+["']?(\/etc\/z?profile(?:\.d\/[^\s'"`;|&)]*)?)/m, (m) => `reads \`${m[1]}\``],
-  [/\bpath_helper\b/, () => 'runs `path_helper`'],
+  [/(?:^|[\s;&|(`$])(npx|bunx|pnpx)\s+(?:-\S+\s+)*(?:@anthropic-ai\/claude-code|claude)\b/m, (m) => `запускает Claude Code через \`${m[1]}\``],
+  [/@anthropic-ai\/claude-code/, () => 'называет пакет `@anthropic-ai/claude-code`'],
+  [/[^\s'"`=;|&(){}<>]*\/claude(?:\.exe)?(?=$|[\s'"`;|&)])/m, (m) => `вызывает Claude Code по пути \`${m[0]}\``],
+  [/(?:^|[\s;&|(`$'"])claude\.exe\b/m, () => 'вызывает `claude.exe`'],
+  [/(?:^|[\s;&|({`])(?:(?:export|declare|typeset|local|readonly)\s+(?:-\w+\s+)*)?PATH\+?=/m, () => 'меняет `PATH`'],
+  [/(?:^|[\s;&|(`$'"])(?:[\w./-]*\/)?(?:ba|da|k|z|fi)?sh\s+(?:-[A-Za-z]*\s+|--[\w-]+\s+)*?(?:-[A-Za-z]*l[A-Za-z]*|--login)(?=$|[\s'"`;|&)])/m, () => 'запускает login-оболочку с `-l` или `--login`'],
+  [/(?:^|[\s;&|(`])(?:\.|source)\s+["']?(\/etc\/z?profile(?:\.d\/[^\s'"`;|&)]*)?)/m, (m) => `читает \`${m[1]}\``],
+  [/\bpath_helper\b/, () => 'запускает `path_helper`'],
 ];
 
 // Why the committed text can't run under the stand-in, or null.
@@ -225,12 +225,12 @@ export function scratchPath(run, call, path) {
 
 // The hint for a script the stand-in didn't run, or null when it ran.
 export function notRun(run, script) {
-  if (run.windows) return `The check didn't run \`${script}\`: it runs scripts with bash and a stand-in for \`claude\` only from WSL 2, macOS or Linux, not from Windows itself. Run the check there.`;
-  if (run.missing) return `Commit \`${script}\` first: the check runs the committed script.`;
-  if (run.crlf) return `The committed \`${script}\` has Windows line ends (CRLF), which bash can't run. Save it with LF line ends (your editor has a setting for this), then commit it again.`;
-  if (run.refused) return `The check runs your script with a stand-in for \`claude\`, found by name on \`PATH\`, so it never spends your usage. \`${script}\` ${run.refused}, which the stand-in can't replace, so the check didn't run it. Call \`claude\` by name, leave \`PATH\` as it is, and commit.`;
-  if (run.error?.code === 'ENOENT') return `The check runs \`${script}\` with bash, which it couldn't find. Run the check where bash is installed: macOS, Linux or WSL.`;
-  if (run.error) return `The check couldn't run \`${script}\`: ${run.error.message}`;
+  if (run.windows) return `Проверка не запускала \`${script}\`: скрипты она выполняет через bash и подставную замену \`claude\` только из WSL 2, macOS или Linux, но не из самой Windows. Запустите проверку там.`;
+  if (run.missing) return `Сначала закоммитьте \`${script}\`: проверка запускает закоммиченный скрипт.`;
+  if (run.crlf) return `В закоммиченном \`${script}\` окончания строк Windows (CRLF), и bash не может его выполнить. Сохраните файл с окончаниями строк LF (в редакторе есть такая настройка) и закоммитьте снова.`;
+  if (run.refused) return `Проверка запускает ваш скрипт с подставной заменой \`claude\`, которая находится по имени в \`PATH\`, поэтому ваш расход не тратится. Но \`${script}\` ${run.refused}, и замена этого не перехватит, поэтому проверка его не запускала. Вызывайте \`claude\` по имени, не меняйте \`PATH\` и закоммитьте.`;
+  if (run.error?.code === 'ENOENT') return `Проверка запускает \`${script}\` через bash, но не нашла его. Запустите проверку там, где установлен bash: в macOS, Linux или WSL.`;
+  if (run.error) return `Проверка не смогла запустить \`${script}\`: ${run.error.message}`;
   return null;
 }
 

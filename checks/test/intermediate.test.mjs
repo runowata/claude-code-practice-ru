@@ -51,7 +51,7 @@ test('i-1 fails when there is no tdd skill at all', () => {
   withRepo(() => repo(), (dir) => {
     const { code, out } = check(['i-1', '--dir', dir]);
     assert.equal(code, 1, out);
-    assert.match(out, /There is no \.claude\/skills\/tdd\/SKILL\.md/);
+    assert.match(out, /Файла \.claude\/skills\/tdd\/SKILL\.md нет/);
   });
 });
 
@@ -60,7 +60,7 @@ test('i-1 fails on the unfinished skill: TODOs, no description and run-by-name o
   withRepo(skillRepo({ skill: partial }), (dir) => {
     const { code, out } = check(['i-1', '--dir', dir]);
     assert.equal(code, 1, out);
-    assert.match(out, /TODO on lines 3, 8, 9/);
+    assert.match(out, /TODO в строках 3, 8, 9/);
     assert.match(out, /disable-model-invocation: true/);
   });
 });
@@ -70,7 +70,7 @@ test('i-1 asks for a description that says what the skill does and when to use i
   withRepo(skillRepo({ skill: short }), (dir) => {
     const { code, out } = check(['i-1', '--dir', dir]);
     assert.equal(code, 1, out);
-    assert.match(out, /when Claude should use it/);
+    assert.match(out, /когда Claude должен им пользоваться/);
   });
 });
 
@@ -95,7 +95,7 @@ test('i-1 fails when the saved commit changes only tests, or only code', () => {
     withRepo(skillRepo({ change }), (dir) => {
       const { code, out } = check(['i-1', '--dir', dir]);
       assert.equal(code, 1, out);
-      assert.match(out, /test and the code it tests/);
+      assert.match(out, /тест и проверяемый им код/);
     });
   }
 });
@@ -141,7 +141,7 @@ test('i-2 fails without an @path import in the committed CLAUDE.md, and ignores 
   withRepo(memoryRepo({ claudeMd: '# linkcheck\n\n- The scripts are in `@package.json`.\n' }), (dir) => {
     const { code, out } = check(['i-2', '--dir', dir]);
     assert.equal(code, 1, out);
-    assert.match(out, /no @path import/);
+    assert.match(out, /нет импорта @путь/);
   });
 });
 
@@ -149,8 +149,8 @@ test('i-2 says a period after the imported path becomes part of it', () => {
   withRepo(memoryRepo({ claudeMd: '# linkcheck\n\nThe npm scripts are in @package.json.\n' }), (dir) => {
     const { code, out } = check(['i-2', '--dir', dir]);
     assert.equal(code, 1, out);
-    assert.match(out, /package\.json\. doesn't exist/);
-    assert.match(out, /first space/);
+    assert.match(out, /package\.json\. не существует/);
+    assert.match(out, /первого пробела/);
   });
 });
 
@@ -193,7 +193,7 @@ test('i-2 fails when the log shows no scoped rule loading, and says which tools 
   withRepo(memoryRepo({ log: [['session_start', 'CLAUDE.md'], ['include', 'package.json']] }), (dir) => {
     const { code, out } = check(['i-2', '--dir', dir]);
     assert.equal(code, 1, out);
-    assert.match(out, /Read tool/);
+    assert.match(out, /инструментом Read/);
   });
 });
 
@@ -244,7 +244,7 @@ test('i-3 fails while model and effort are still TODO', () => {
 });
 
 test('i-3 says a routine task does not need a larger model or a higher effort', () => {
-  for (const [model, effort, hint] of [['opus', 'low', /larger model/], ['sonnet', 'high', /higher effort/]]) {
+  for (const [model, effort, hint] of [['opus', 'low', /крупнее/], ['sonnet', 'high', /больше усилий/]]) {
     withRepo(effortRepo({ model, effort }), (dir) => {
       const { code, out } = check(['i-3', '--dir', dir]);
       assert.equal(code, 1, out);
@@ -323,7 +323,7 @@ test('i-4 fails when the shared settings are not valid JSON', () => {
   withRepo(scopesRepo({ team: '{ "permissions": { "allow": ["Bash(npm test)"], } }' }), (dir) => {
     const { code, out } = check(['i-4', '--dir', dir]);
     assert.equal(code, 1, out);
-    assert.match(out, /not valid JSON/);
+    assert.match(out, /не корректный JSON/);
   });
 });
 
@@ -397,8 +397,8 @@ test('i-5 fails when the finished hook drops the guide\'s package-lock.json and 
   withRepo(hookRepo({ hook: FIXED_HOOK.replace(/^  \*\/package-lock.*$\n/m, '') }), (dir) => {
     const { code, out } = check(['i-5', '--dir', dir]);
     assert.equal(code, 1, out);
-    assert.match(out, /package-lock\.json gave exit 0/);
-    assert.match(out, /\.git\/config gave exit 0/);
+    assert.match(out, /package-lock\.json: код выхода 0/);
+    assert.match(out, /\.git\/config: код выхода 0/);
   });
 });
 
@@ -482,7 +482,7 @@ test('i-6 fails while the partial file still has its TODOs', () => {
   withRepo(agentRepo({ fields: 'description: TODO\ntools: TODO' }), (dir) => {
     const { code, out } = check(['i-6', '--dir', dir]);
     assert.equal(code, 1, out);
-    assert.match(out, /description/);
+    assert.match(out, /описание/);
     assert.match(out, /tools/);
   });
 });
@@ -492,7 +492,7 @@ test('i-6 fails for a subagent that can edit files or run commands, or inherits 
     withRepo(agentRepo({ fields: GAPS_FIELDS.replace('tools: Read, Grep, Glob', tools) }), (dir) => {
       const { code, out } = check(['i-6', '--dir', dir]);
       assert.equal(code, 1, `${tools}: ${out}`);
-      assert.match(out, /read-only|every tool/);
+      assert.match(out, /только для чтения|все инструменты/);
     });
   }
 });
@@ -506,7 +506,7 @@ test('i-6 says how to log delegations when there is no log, and fails when test-
   withRepo(agentRepo({ log: 'Explore\n' }), (dir) => {
     const { code, out } = check(['i-6', '--dir', dir]);
     assert.equal(code, 1, out);
-    assert.match(out, /Use the test-gaps agent/);
+    assert.match(out, /Используй агента test-gaps/);
   });
 });
 
@@ -540,10 +540,10 @@ test('i-7 accepts the flags written as --flag=false', () => {
 
 test('i-7 fails for @latest, and for each data flow left on', () => {
   for (const [args, env, hint] of [
-    [['-y', 'chrome-devtools-mcp@latest', '--no-usage-statistics', '--no-performance-crux'], undefined, /exact version/],
-    [['-y', 'chrome-devtools-mcp@1.10.1', '--no-performance-crux'], undefined, /usage statistics/],
+    [['-y', 'chrome-devtools-mcp@latest', '--no-usage-statistics', '--no-performance-crux'], undefined, /точную версию/],
+    [['-y', 'chrome-devtools-mcp@1.10.1', '--no-performance-crux'], undefined, /Статистика использования/],
     [['-y', 'chrome-devtools-mcp@1.10.1', '--no-usage-statistics'], undefined, /CrUX/],
-    [PINNED, {}, /update checks/],
+    [PINNED, {}, /Проверка обновлений/],
   ]) {
     withRepo(mcpRepo({ mcp: MCP(args, env) }), (dir) => {
       const { code, out } = check(['i-7', '--dir', dir]);
@@ -684,7 +684,7 @@ test('the Intermediate capstone passes when everything in the brief is committed
 });
 
 test('the Intermediate capstone fails without a skill, a reviewer or a hook, naming each', () => {
-  for (const [path, hint] of [['.claude/skills/check-links/SKILL.md', /skill/], ['.claude/agents/reviewer.md', /subagent/], ['.claude/hooks/protect-samples.sh', /samples\//]]) {
+  for (const [path, hint] of [['.claude/skills/check-links/SKILL.md', /skill/], ['.claude/agents/reviewer.md', /субагент/], ['.claude/hooks/protect-samples.sh', /samples\//]]) {
     withRepo(capstoneRepo({ omit: [path] }), (dir) => {
       const { code, out } = check(['i-capstone', '--dir', dir]);
       assert.equal(code, 1, out);
@@ -711,7 +711,7 @@ test('the Intermediate capstone does not count lesson leftovers as the brief\'s 
     const { code, out } = check(['i-capstone', '--dir', dir]);
     assert.equal(code, 1, out);
     assert.match(out, /npm run linkcheck/);
-    assert.match(out, /reviews changes/);
+    assert.match(out, /проверяет изменения/);
   });
 });
 

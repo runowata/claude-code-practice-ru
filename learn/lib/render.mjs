@@ -344,9 +344,9 @@ const VIEWS = {
     const word = banner(t, C.complete);
     const fits = t.unicode && W >= 14 + bannerWidth(C.complete);
     const n = s.course.findIndex((l) => l.id === s.lesson) + 1;
-    const label = s.lesson.endsWith('capstone') ? 'Capstone' : `Lesson ${n}`;
+    const label = s.lesson.endsWith('capstone') ? 'Итоговый проект' : `Урок ${n}`;
     return {
-      head: lessonHead(ctx, t.pill(`${C.complete} ${t.glyph.check}`, 'okBg'), `${total} of ${total}`),
+      head: lessonHead(ctx, t.pill(`${C.complete} ${t.glyph.check}`, 'okBg'), `${total} из ${total}`),
       body: [
         confetti(t, W),
         SPACER,
@@ -381,7 +381,7 @@ const VIEWS = {
     }
     body.push(SPACER, t.fg('muted', C.savedBreak));
     return {
-      head: lessonHead(ctx, t.pill(`${C.complete} ${t.glyph.check}`, 'okBg'), `${total} of ${total}`),
+      head: lessonHead(ctx, t.pill(`${C.complete} ${t.glyph.check}`, 'okBg'), `${total} из ${total}`),
       body,
       keys: [nextLesson ? mainKey('enter', C.k.startN(lessonLabel(nextLesson.id))) : mainKey('enter', C.k.map), key('m', C.k.map), key('q', C.k.quit)],
     };
@@ -410,7 +410,7 @@ const VIEWS = {
       return i ? [SPACER, line] : [line];
     });
     return {
-      head: [spread(`${t.lead('map')}${t.pill(C.map, 'accentBg')}  ${t.bold(t.fg('white', 'Beginner path'))}`, t.fg('muted', C.ofDone(done, total)), W),
+      head: [spread(`${t.lead('map')}${t.pill(C.map, 'accentBg')}  ${t.bold(t.fg('white', 'Начальный путь'))}`, t.fg('muted', C.ofDone(done, total)), W),
         `${t.fg('ok', t.glyph.bold.repeat(filled))}${t.fg('faint', t.glyph.rule.repeat(barW - filled))} ${t.fg('ok', `${pct}%`)}`, rule(t, W)],
       body: [`${t.fg('muted', C.help)}  ${legend}`, SPACER, ...rows, SPACER, t.fg('muted', C.mapFooter)],
       keys: [key(t.glyph.up, C.k.choose), key('enter', C.k.open), key('m', C.k.back), key('q', C.k.quit)],
@@ -507,7 +507,7 @@ function stepView(ctx) {
         const cmd = (t.caps.win32 && l.win) || withRoot(l.text, s.facts.root, t.caps.win32);
         const cw = chipWidth(ctx, beat);
         const long = cw + 22 <= inner;
-        const tick = l.tick === 'practice-dir' && s.facts.practiceDir && !done ? `  ${t.fg('ok', long ? `${t.glyph.check} .practice/ exists` : t.glyph.check)}` : done && ['check', 'file'].includes(beat.verify.kind) ? `  ${t.fg('ok', t.glyph.check)}` : '';
+        const tick = l.tick === 'practice-dir' && s.facts.practiceDir && !done ? `  ${t.fg('ok', long ? `${t.glyph.check} .practice/ уже есть` : t.glyph.check)}` : done && ['check', 'file'].includes(beat.verify.kind) ? `  ${t.fg('ok', t.glyph.check)}` : '';
         const lines = chip(t, cmd, beat.where, cw);
         rows.push(lines[0] + tick, ...lines.slice(1));
         if (!nextRun && i < beat.lines.length - 1) rows.push(SPACER);
@@ -588,7 +588,7 @@ function options(ctx, beat) {
     const mark = right ? t.fg('ok', t.glyph.check) : wrong ? t.fg('warn', t.glyph.warnMark) : cursor ? t.fg('key', t.bold(t.glyph.pointer)) : chosen ? t.fg('key', t.glyph.pointer) : ' ';
     const num = cursor ? t.inverse(t.fg('key', t.bold(` ${i + 1} `))) : t.fg('muted', ` ${i + 1} `);
     const color = right ? 'ok' : wrong || o.kind === 'other' ? 'muted' : cursor ? 'key' : 'text';
-    const tag = wrong && st.wrongs.at(-1) === i && !st.answer ? `  ${t.fg('warn', `${t.unicode ? '←' : '<-'} not this one`)}` : '';
+    const tag = wrong && st.wrongs.at(-1) === i && !st.answer ? `  ${t.fg('warn', `${t.unicode ? '←' : '<-'} не этот`)}` : '';
     // The option wraps short of the tag beside its first line.
     const text = para(t, o.text, inner - 10 - width(tag), color);
     return text.map((x, k) => (k ? `       ${x}` : ` ${mark} ${num}  ${cursor ? t.bold(x) : x}${tag}`));
@@ -619,10 +619,10 @@ function footerRows(ctx, { beat, step, content, isLastBeat }) {
     rows.push(`${t.fg('ok', t.glyph.check)} ${t.fg('code', `npm run check -- ${s.lesson}`)} ${t.fg('ok', C.checkPasses(items.filter((x) => x.pass).length, items.length)[0])}`, ...para(t, C.runItToo(C.where[beat.where] ?? C.where.terminal), inner, 'muted'));
   } else if (st.status === 'done' && ['check', 'file'].includes(beat.verify.kind)) {
     // What the file holds, beside the burst; on two lines when one is too long.
-    const one = `${beat.evidence} holds ${st.evidence}`;
+    const one = `${beat.evidence} содержит ${st.evidence}`;
     const ev = !st.evidence || !beat.evidence ? []
-      : width(one) <= room ? [`${t.fg('code', beat.evidence)}${t.fg('text', ' holds ')}${t.fg('code', st.evidence)}`]
-        : [t.fg('code', cut(beat.evidence, room, t.unicode ? '…' : '.')), `${t.fg('text', 'holds ')}${t.fg('code', cut(st.evidence, room - 6, t.unicode ? '…' : '.'))}`];
+      : width(one) <= room ? [`${t.fg('code', beat.evidence)}${t.fg('text', ' содержит ')}${t.fg('code', st.evidence)}`]
+        : [t.fg('code', cut(beat.evidence, room, t.unicode ? '…' : '.')), `${t.fg('text', 'содержит ')}${t.fg('code', cut(st.evidence, room - 9, t.unicode ? '…' : '.'))}`];
     if (isLastBeat) celebrate(ev.length ? ev : para(t, C.beatDone, room, 'text'));
     else rows.push(lead(t, 'verified', t.fg('ok', C.beatDone)));
   } else if (st.status === 'done' && beat.verify.kind === 'git-clean') {
@@ -652,7 +652,7 @@ function footerRows(ctx, { beat, step, content, isLastBeat }) {
   } else if (st.status === 'waiting' && st.slowWait) {
     rows.push(...para(t, `${t.lead('watch')}${C.slowWait}`, inner, 'muted'));
   } else if (st.status === 'waiting' && ['check', 'file'].includes(beat.verify.kind)) {
-    const [a, what, b] = (st.stale ? C.staleWatch : C.watching)(beat.watching ?? beat.evidence ?? 'your files');
+    const [a, what, b] = (st.stale ? C.staleWatch : C.watching)(beat.watching ?? beat.evidence ?? 'ваши файлы');
     rows.push(...para(t, `${t.lead('watch')}${a}\`${what}\`${b}`, inner, 'muted'));
   } else if (beat.verify.kind === 'git-clean' && (st.status === 'waiting' || st.status === 'fail')) {
     const paths = s.git?.paths ?? [];

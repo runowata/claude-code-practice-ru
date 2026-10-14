@@ -1,26 +1,26 @@
-   B1   Install, sign in and look around                               GUIDED ★☆☆
-  ●━━●━━●──○──○──○──○   ◇──◇──◇   ☆──☆                                step 3 of 12
+   B1   Установка, вход и первый осмотр                                GUIDED ★☆☆
+  ●━━●━━●──○──○──○──○   ◇──◇──◇   ☆──☆                                 шаг 3 из 12
   ────────────────────────────────────────────────────────────────────────────────
 
-  ╭─  💻 in your other terminal  ─────────────────────────────────────────────────
+  ╭─  💻 во втором терминале  ────────────────────────────────────────────────────
   │
-  │  Save the version
-  │  Go to your practice copy and save that output for the check:
+  │  Сохраните версию
+  │  Перейдите в учебную копию и сохраните этот вывод для проверки
   │
   │   $ cd /home/sam/claude-code-practice
-  │   $ mkdir -p .practice                              ✔ .practice/ exists
+  │   $ mkdir -p .practice                              ✔ .practice/ уже есть
   │   $ claude --version > .practice/version.txt
   │
-  │  Done when .practice/version.txt holds a line such as X.Y.Z (Claude Code).
+  │  Условие готовности: В .practice/version.txt записана строка вида
+  │  X.Y.Z (Claude Code).
   │
-  │  👀 Watching .practice/version.txt. I'll turn green the moment it's right.
+  │  👀 Слежу за .practice/version.txt. Загорюсь зелёным, как только всё будет
+  │  верно.
   ╰───────────────────────────────────────────────────────────────────────────────
 
 
 
 
 
-
-
   ────────────────────────────────────────────────────────────────────────────────
-  r check now    w why    m map    ? more    q quit
+  r проверить сейчас    w почему    m карта    ? ещё    q выйти

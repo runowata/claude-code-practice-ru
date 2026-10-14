@@ -3,7 +3,7 @@
 // and records the commit a new session made.
 import { isTestFile } from '../paths.mjs';
 
-export const title = 'Project memory with CLAUDE.md';
+export const title = 'Память проекта в CLAUDE.md';
 
 const SAVE_COMMIT = '`git rev-parse HEAD > .practice/b-5-commit.txt`';
 const isSource = (f) => !isTestFile(f) && !/\.md$/i.test(f);
@@ -25,40 +25,40 @@ function committedMemory(repo) {
 
 export const items = [
   {
-    text: 'a committed CLAUDE.md holds the rule saved in `.practice/b-5-rule.txt`',
+    text: 'закоммиченный CLAUDE.md содержит правило, сохранённое в `.practice/b-5-rule.txt`',
     local: true,
     check(repo) {
       const line = rule(repo);
-      if (!line) return 'Save the rule\'s exact line, for example `echo \'// Part of linkcheck.\' > .practice/b-5-rule.txt`.';
+      if (!line) return 'Сохраните точную строку правила, например `echo \'// Part of linkcheck.\' > .practice/b-5-rule.txt`.';
       const memory = committedMemory(repo);
-      if (memory === null) return 'CLAUDE.md is not committed. Run `git add CLAUDE.md` and commit it.';
-      return memory.includes(line) ? true : `The committed CLAUDE.md doesn't contain \`${line}\`, the line saved in \`.practice/b-5-rule.txt\`. Add that line to the project's CLAUDE.md and commit it again, or save your own rule's line to \`.practice/b-5-rule.txt\`.`;
+      if (memory === null) return 'CLAUDE.md не закоммичен. Выполните `git add CLAUDE.md` и закоммитьте его.';
+      return memory.includes(line) ? true : `В закоммиченном CLAUDE.md нет строки \`${line}\`, сохранённой в \`.practice/b-5-rule.txt\`. Добавьте эту строку в CLAUDE.md проекта и закоммитьте снова либо сохраните в \`.practice/b-5-rule.txt\` строку своего правила.`;
     },
   },
   {
-    text: 'every new file in the commit named in `.practice/b-5-commit.txt`, apart from tests and Markdown, starts with that rule',
+    text: 'каждый новый файл в коммите, указанном в `.practice/b-5-commit.txt`, кроме тестов и Markdown, начинается с этого правила',
     local: true,
     check(repo) {
       const line = rule(repo);
       const saved = repo.read('.practice/b-5-commit.txt');
-      if (!line || !saved?.trim()) return `After the new session commits its change, run ${SAVE_COMMIT}.`;
+      if (!line || !saved?.trim()) return `После того как новая сессия закоммитит своё изменение, выполните ${SAVE_COMMIT}.`;
       const sha = saved.trim().split(/\s+/)[0];
       let added;
       try {
         added = repo.git('show', '--diff-filter=A', '--name-only', '--format=', sha).split('\n').filter(Boolean);
       } catch {
-        return `\`.practice/b-5-commit.txt\` names ${sha}, which is not a commit in this repository.`;
+        return `В \`.practice/b-5-commit.txt\` указан ${sha}, но это не коммит этого репозитория.`;
       }
       const sources = added.filter(isSource);
       if (!sources.length) {
         const waiting = repo.git('status', '--porcelain', '--untracked-files=all').split('\n')
           .filter((l) => l.startsWith('?? ')).map((l) => l.slice(3))
           .filter((f) => !f.startsWith('.practice/') && isSource(f));
-        if (waiting.length) return `That commit adds no new source file, and these new files are not committed yet: ${waiting.join(', ')}. Ask Claude to commit them, then run ${SAVE_COMMIT} again.`;
-        return `That commit adds no new source file. Ask the new session for a change that creates one and to commit it, then run ${SAVE_COMMIT} again.`;
+        if (waiting.length) return `Этот коммит не добавляет ни одного нового файла с кодом, а эти новые файлы ещё не закоммичены: ${waiting.join(', ')}. Попросите Claude закоммитить их, затем снова выполните ${SAVE_COMMIT}.`;
+        return `Этот коммит не добавляет ни одного нового файла с кодом. Попросите новую сессию сделать изменение, которое создаёт такой файл, и закоммитить его, затем снова выполните ${SAVE_COMMIT}.`;
       }
       const wrong = sources.filter((f) => repo.git('show', `${sha}:${f}`).replace(/^\uFEFF/, '').split(/\r?\n/)[0].trim() !== line);
-      return wrong.length ? `These new files don't start with \`${line}\`: ${wrong.join(', ')}. Check that the rule is in the committed CLAUDE.md, start a new session, ask it for a different new file and to commit it, then run ${SAVE_COMMIT} again.` : true;
+      return wrong.length ? `Эти новые файлы не начинаются с \`${line}\`: ${wrong.join(', ')}. Убедитесь, что правило есть в закоммиченном CLAUDE.md, начните новую сессию, попросите её создать другой новый файл и закоммитить его, затем снова выполните ${SAVE_COMMIT}.` : true;
     },
   },
 ];

@@ -15,7 +15,7 @@ import { lessons } from './lessons/index.mjs';
 import { openRepo } from './repo.mjs';
 
 function usage(message) {
-  console.error(`${message}\nusage: npm run check -- <${Object.keys(lessons).join('|')}|all> [--dir <path>]`);
+  console.error(`${message}\nиспользование: npm run check -- <${Object.keys(lessons).join('|')}|all> [--dir <path>]`);
   process.exit(2);
 }
 
@@ -30,14 +30,14 @@ try {
 }
 const { values, positionals } = parsed;
 const [id, extra] = positionals;
-if (!id) usage('name a lesson to check');
+if (!id) usage('назовите урок для проверки');
 // Some shells, such as Windows PowerShell with an older npm, drop the `--`, so
 // npm keeps --dir for itself and passes only the folder on.
-if (extra !== undefined) usage(`unexpected argument "${extra}". Put --dir before the folder to check. If you did, your shell dropped the --: run node checks/run.mjs ${id} --dir <folder> instead.`);
-if (id !== 'all' && !lessons[id]) usage(`no check for "${id}"`);
-if (values.assert && !['pass', 'fail'].includes(values.assert)) usage('--assert takes pass or fail');
+if (extra !== undefined) usage(`лишний аргумент «${extra}». Поставьте --dir перед папкой, которую проверяете. Если так и сделали, оболочка потеряла --: запустите node checks/run.mjs ${id} --dir <папка>.`);
+if (id !== 'all' && !lessons[id]) usage(`нет проверки для «${id}»`);
+if (values.assert && !['pass', 'fail'].includes(values.assert)) usage('--assert принимает pass или fail');
 const dir = resolve(values.dir);
-if (!existsSync(dir)) usage(`no such folder: ${dir}`);
+if (!existsSync(dir)) usage(`нет такой папки: ${dir}`);
 
 const repo = openRepo(dir);
 const chosen = id === 'all' ? Object.entries(lessons) : [[id, lessons[id]]];
@@ -49,7 +49,7 @@ const results = chosen.map(([lessonId, lesson]) => ({
     try {
       outcome = item.check(repo);
     } catch (error) {
-      outcome = `The check could not run: ${error.message}`;
+      outcome = `Проверка не смогла запуститься: ${error.message}`;
     }
     return { text: item.text, local: Boolean(item.local), pass: outcome === true, hint: outcome === true ? '' : outcome };
   }),
@@ -61,13 +61,13 @@ const results = chosen.map(([lessonId, lesson]) => ({
 if (values.summary) {
   // Saved state under .practice/ never reaches GitHub, so the progress run
   // reports those items as checked locally instead of failed.
-  const rows = results.flatMap((l) => l.items.map((i) => `| ${l.id} | ${i.text} | ${i.local ? 'checked locally' : i.pass ? 'passed' : 'not yet'} |`));
-  console.log(['## Practice progress', '', '| Lesson | Item | Result |', '|---|---|---|', ...rows, '',
-    'Items marked "checked locally" read files under `.practice/`, which are never pushed. Run `npm run check -- <lesson-id>` on your machine to check them.'].join('\n'));
+  const rows = results.flatMap((l) => l.items.map((i) => `| ${l.id} | ${i.text} | ${i.local ? 'проверено локально' : i.pass ? 'пройдено' : 'пока нет'} |`));
+  console.log(['## Прогресс практики', '', '| Урок | Пункт | Результат |', '|---|---|---|', ...rows, '',
+    'Пункты с пометкой «проверено локально» читают файлы в `.practice/`, которые никогда не отправляются на GitHub. Запустите `npm run check -- <lesson-id>` на своём компьютере, чтобы проверить их.'].join('\n'));
 } else if (values.assert) {
   const wrong = results.filter((l) => (values.assert === 'pass') !== l.items.every((i) => i.pass));
-  for (const l of wrong) console.log(`${l.id}: expected every check to ${values.assert}, but ${values.assert === 'pass' ? 'some failed' : 'all passed'}`);
-  console.log(wrong.length ? `${wrong.length} lesson(s) broke the assertion` : `Every lesson's check ${values.assert === 'pass' ? 'passes' : 'fails'}, as expected.`);
+  for (const l of wrong) console.log(`${l.id}: ожидалось, что каждая проверка ${values.assert === 'pass' ? 'пройдёт' : 'провалится'}, но ${values.assert === 'pass' ? 'часть провалилась' : 'все прошли'}`);
+  console.log(wrong.length ? `${wrong.length} урок(ов) нарушили ожидание` : `Проверка каждого урока ${values.assert === 'pass' ? 'проходит' : 'не проходит'}, как и ожидалось.`);
   process.exitCode = wrong.length ? 1 : 0;
 } else report();
 
@@ -84,6 +84,6 @@ function report() {
     }
   }
   const total = results.reduce((n, l) => n + l.items.length, 0);
-  console.log(`\n${total - failed} of ${total} passed`);
+  console.log(`\nПройдено ${total - failed} из ${total}`);
   process.exitCode = failed ? 1 : 0;
 }
